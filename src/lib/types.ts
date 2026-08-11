@@ -122,7 +122,7 @@ export interface AppSettings {
   m365Connected: boolean;
   findMiConnected: boolean;
   tenantId: string;
-  deployMode: "demo" | "exchange-rule" | "outlook-roaming";
+  deployMode: "demo" | "export-script" | "publish-rule";
   lastSyncAt?: string;
   lastFindMiSyncAt?: string;
   lastDeployAt?: string;

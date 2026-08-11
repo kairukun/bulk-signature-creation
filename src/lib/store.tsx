@@ -74,6 +74,16 @@ function loadState(): AppState {
     if (!raw) return createInitialState();
     const parsed = JSON.parse(raw) as Partial<AppState>;
     const base = createInitialState();
+    const legacyMode = parsed.settings?.deployMode as string | undefined;
+    const deployMode =
+      legacyMode === "export-script" ||
+      legacyMode === "publish-rule" ||
+      legacyMode === "demo"
+        ? legacyMode
+        : legacyMode === "exchange-rule"
+          ? "export-script"
+          : "demo";
+
     return {
       ...base,
       ...parsed,
@@ -83,6 +93,7 @@ function loadState(): AppState {
         ...base.settings,
         ...parsed.settings,
         findMiConnected: parsed.settings?.findMiConnected ?? false,
+        deployMode,
       },
     };
   } catch {
