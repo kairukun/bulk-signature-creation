@@ -1,4 +1,8 @@
 import { COMPANY_NAME, COMPANY_WEBSITE } from "./constants";
+import {
+  departmentForFindMiRole,
+  mapFindMiDepartment,
+} from "./departments";
 import type { Department, DirectoryUser, FindMiRole } from "./types";
 
 /** Live FindMi / alignment API used by https://dossaniparadise.github.io/DPM-FindMi/ */
@@ -91,7 +95,7 @@ const ROLE_FALLBACK: Record<
 > = {
   admin: {
     jobTitle: "Administrator",
-    department: "Support",
+    department: "Administrative",
     group: "FindMi Admin",
   },
   vp: {
@@ -101,17 +105,17 @@ const ROLE_FALLBACK: Record<
   },
   director: {
     jobTitle: "Director of Operations",
-    department: "Executive",
+    department: "Above Store Leader",
     group: "FindMi Director",
   },
   district_manager: {
     jobTitle: "District Manager",
-    department: "Operations",
+    department: "Area Coach",
     group: "FindMi District Manager",
   },
   repair_technician: {
     jobTitle: "Repair Technician",
-    department: "Support",
+    department: "Repair and Maintenance",
     group: "FindMi Repair Tech",
   },
   entity: {
@@ -155,21 +159,7 @@ export function parseFindMiAddress(address: string): {
   return { streetAddress: cleaned, cityStateZip: "" };
 }
 
-export function mapFindMiDepartment(raw?: string): Department {
-  const d = String(raw || "")
-    .trim()
-    .toLowerCase();
-  if (!d) return "Operations";
-  if (d.includes("exec")) return "Executive";
-  if (d.includes("operation")) return "Operations";
-  if (d.includes("sales")) return "Sales";
-  if (d.includes("market")) return "Marketing";
-  if (d.includes("finance") || d.includes("account")) return "Finance";
-  if (d.includes("hr") || d.includes("human")) return "HR";
-  if (d.includes("support") || d.includes("it ") || d === "it") return "Support";
-  if (d.includes("engineer")) return "Engineering";
-  return "Operations";
-}
+export { mapFindMiDepartment, departmentForFindMiRole } from "./departments";
 
 export function normalizeFindMiStore(
   id: string,
@@ -386,7 +376,7 @@ export function findMiStoreToDirectoryUser(
     displayName,
     email: store.email,
     jobTitle,
-    department: "Operations",
+    department: departmentForFindMiRole("store"),
     phone: store.phone,
     company: store.entity || COMPANY_NAME,
     website: COMPANY_WEBSITE,
@@ -415,9 +405,10 @@ export function findMiPersonToDirectoryUser(
   const fallback =
     ROLE_FALLBACK[person.role === "store" ? "other" : person.role];
   const jobTitle = person.jobTitle || fallback.jobTitle;
-  const department = person.department
-    ? mapFindMiDepartment(person.department)
-    : fallback.department;
+  const department = mapFindMiDepartment(
+    person.department || person.jobTitle,
+    person.role,
+  );
 
   return {
     // Stable across role-bucket moves so title/role updates refresh in place.

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { createInitialState } from "./demo-data";
+import { isDepartment, mapFindMiDepartment } from "./departments";
 import {
   applyDirectoryOverrides,
   diffFindMiDirectory,
@@ -19,6 +20,7 @@ import type {
   AppSettings,
   AppState,
   Campaign,
+  Department,
   DirectoryUser,
   FindMiStoreRecord,
   Role,
@@ -26,6 +28,39 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "dpm-email-signatures:v5";
+
+function normalizeUserDepartment(user: DirectoryUser): DirectoryUser {
+  if (isDepartment(user.department) && user.department !== "All") {
+    return user;
+  }
+  // Migrate legacy demo departments.
+  const legacy = String(user.department || "");
+  if (legacy === "Sales" || legacy === "Support") {
+    return { ...user, department: "Operations" };
+  }
+  if (legacy === "Engineering") {
+    return { ...user, department: "Development" };
+  }
+  return {
+    ...user,
+    department: mapFindMiDepartment(legacy, user.findMiRole || "other"),
+  };
+}
+
+function normalizeDepartmentList(values: Department[] | undefined): Department[] {
+  if (!values?.length) return ["All"];
+  const next = values
+    .map((d) => {
+      if (isDepartment(d)) return d;
+      if (d === ("Sales" as Department) || d === ("Support" as Department)) {
+        return "Operations" as Department;
+      }
+      if (d === ("Engineering" as Department)) return "Development" as Department;
+      return null;
+    })
+    .filter((d): d is Department => Boolean(d));
+  return next.length ? next : ["All"];
+}
 
 /** Fields editable in the FindMi UI that can become local overrides. */
 const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
@@ -39,6 +74,7 @@ const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
   "storeName",
   "storeNumber",
   "company",
+  "department",
 ];
 
 interface StoreContextValue extends AppState {
@@ -96,9 +132,19 @@ function loadState(): AppState {
     return {
       ...base,
       ...parsed,
-      users: (parsed.users ?? []).filter((u) => u.source !== "sample"),
+      users: (parsed.users ?? [])
+        .filter((u) => u.source !== "sample")
+        .map(normalizeUserDepartment),
       stores: parsed.stores ?? [],
       findMiOverrides: parsed.findMiOverrides ?? {},
+      templates: (parsed.templates ?? base.templates).map((t) => ({
+        ...t,
+        assignedDepartments: normalizeDepartmentList(t.assignedDepartments),
+      })),
+      campaigns: (parsed.campaigns ?? base.campaigns).map((c) => ({
+        ...c,
+        targetDepartments: normalizeDepartmentList(c.targetDepartments),
+      })),
       settings: {
         ...base.settings,
         ...parsed.settings,

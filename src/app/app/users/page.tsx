@@ -1,9 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ASSIGNABLE_DEPARTMENTS } from "@/lib/departments";
 import { FINDMI_ROLE_LABELS } from "@/lib/findmi";
 import { useStore } from "@/lib/store";
-import type { DirectoryUser, FindMiRole, SignatureTemplate } from "@/lib/types";
+import type {
+  Department,
+  DirectoryUser,
+  FindMiRole,
+  SignatureTemplate,
+} from "@/lib/types";
 
 type TabFilter = "all" | FindMiRole;
 
@@ -75,6 +81,7 @@ export default function UsersPage() {
         u.storeNumber,
         u.streetAddress,
         u.cityStateZip,
+        u.department,
         u.jobTitle,
         u.findMiRole ? FINDMI_ROLE_LABELS[u.findMiRole] : "",
       ]
@@ -228,6 +235,7 @@ export default function UsersPage() {
             <tr>
               <th>Person / Store</th>
               <th>Role</th>
+              <th>Department</th>
               <th>Address</th>
               <th>Phone / Email</th>
               <th>Signature</th>
@@ -258,6 +266,25 @@ export default function UsersPage() {
                   {user.findMiRole
                     ? FINDMI_ROLE_LABELS[user.findMiRole]
                     : "—"}
+                </td>
+                <td>
+                  <select
+                    value={user.department}
+                    disabled={!canDeploy}
+                    onChange={(e) =>
+                      updateUser({
+                        ...user,
+                        department: e.target.value as Department,
+                      })
+                    }
+                    aria-label={`Department for ${user.displayName}`}
+                  >
+                    {ASSIGNABLE_DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <div>{user.streetAddress || user.location || "—"}</div>
@@ -295,7 +322,7 @@ export default function UsersPage() {
             ))}
             {!filtered.length ? (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   No FindMi records yet. Click <strong>Sync from FindMi</strong>{" "}
                   to load stores and leadership.
                 </td>
@@ -361,6 +388,26 @@ export default function UsersPage() {
                   }
                 />
               </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="edit-department">Department</label>
+              <select
+                id="edit-department"
+                value={editing.department}
+                onChange={(e) =>
+                  setEditing({
+                    ...editing,
+                    department: e.target.value as Department,
+                  })
+                }
+              >
+                {ASSIGNABLE_DEPARTMENTS.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {editing.findMiRole === "store" ? (

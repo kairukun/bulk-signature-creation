@@ -3,18 +3,7 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import type { Campaign, Department } from "@/lib/types";
-
-const DEPARTMENTS: Department[] = [
-  "All",
-  "Executive",
-  "Operations",
-  "Sales",
-  "Marketing",
-  "Engineering",
-  "Support",
-  "Finance",
-  "HR",
-];
+import { DEPARTMENTS } from "@/lib/departments";
 
 function emptyCampaign(): Campaign {
   const today = new Date().toISOString().slice(0, 10);

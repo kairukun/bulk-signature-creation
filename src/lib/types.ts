@@ -3,13 +3,17 @@ export type Role = "admin" | "it" | "marketing" | "viewer";
 export type Department =
   | "All"
   | "Executive"
-  | "Operations"
-  | "Sales"
+  | "Administrative"
   | "Marketing"
-  | "Engineering"
-  | "Support"
+  | "Development"
   | "Finance"
-  | "HR";
+  | "Accounting"
+  | "HR"
+  | "IT"
+  | "Operations"
+  | "Above Store Leader"
+  | "Area Coach"
+  | "Repair and Maintenance";
 
 export type FindMiRole =
   | "store"

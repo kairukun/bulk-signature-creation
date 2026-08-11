@@ -70,7 +70,7 @@ export const DEMO_TEMPLATES: SignatureTemplate[] = [
     ctaUrl: "https://www.dossaniparadise.com",
     websiteDisplay: "www.DossaniParadise.com",
     disclaimer: "",
-    assignedDepartments: ["Sales"],
+    assignedDepartments: ["Operations"],
     assignedGroups: ["Leasing"],
     assignedUserIds: [],
     updatedAt: new Date().toISOString(),
@@ -90,7 +90,7 @@ export const DEMO_CAMPAIGNS: Campaign[] = [
     active: false,
     clicks: 128,
     views: 1820,
-    targetDepartments: ["Sales", "Marketing", "Executive"],
+    targetDepartments: ["Operations", "Marketing", "Executive"],
   },
 ];
 

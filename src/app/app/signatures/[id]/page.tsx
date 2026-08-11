@@ -8,18 +8,7 @@ import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCL
 import { DEFAULT_SIGNATURE_FONT, SIGNATURE_FONTS } from "@/lib/fonts";
 import { useStore } from "@/lib/store";
 import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types";
-
-const DEPARTMENTS: Department[] = [
-  "All",
-  "Executive",
-  "Operations",
-  "Sales",
-  "Marketing",
-  "Engineering",
-  "Support",
-  "Finance",
-  "HR",
-];
+import { DEPARTMENTS } from "@/lib/departments";
 
 const LAYOUTS: SignatureLayout[] = [
   "corporate",
