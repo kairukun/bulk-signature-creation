@@ -13,10 +13,12 @@ This is not a multi-tenant or commercial product. It exists so DPM IT/ops can:
 The site requires sign-in. Set on the host (Vercel):
 
 ```env
-AUTH_EMAIL=
+AUTH_EMAIL=kyle@dossaniparadise.com,ITSupport@dossaniparadise.com
 AUTH_PASSWORD=
 AUTH_SECRET=
 ```
+
+`AUTH_EMAIL` accepts a comma-separated allowlist; all listed users share `AUTH_PASSWORD`.
 
 Unauthenticated visitors are redirected to `/login`. Email click-tracking (`/api/track/*`) stays public.
 

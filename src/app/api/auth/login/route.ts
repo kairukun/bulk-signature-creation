@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       {
         ok: false,
         error:
-          "Login is not configured. Set AUTH_EMAIL, AUTH_PASSWORD, and AUTH_SECRET on the host.",
+          "Login is not configured. Set AUTH_EMAIL (comma-separated allowlist), AUTH_PASSWORD, and AUTH_SECRET on the host.",
       },
       { status: 503 },
     );

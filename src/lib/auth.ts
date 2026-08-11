@@ -18,19 +18,22 @@ function authSecret(): string {
   throw new Error("AUTH_SECRET is not configured");
 }
 
-export function getExpectedCredentials(): { email: string; password: string } {
-  const email = process.env.AUTH_EMAIL?.trim().toLowerCase();
-  const password = process.env.AUTH_PASSWORD ?? "";
-  if (!email || !password) {
-    throw new Error("AUTH_EMAIL and AUTH_PASSWORD must be configured");
-  }
-  return { email, password };
+/** Comma/semicolon/whitespace-separated allowlist. AUTH_EMAILS overrides AUTH_EMAIL if set. */
+export function getAllowedEmails(): string[] {
+  const raw =
+    process.env.AUTH_EMAILS?.trim() || process.env.AUTH_EMAIL?.trim() || "";
+  return raw
+    .split(/[,;\s]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function getExpectedPassword(): string {
+  return process.env.AUTH_PASSWORD ?? "";
 }
 
 export function credentialsConfigured(): boolean {
-  return Boolean(
-    process.env.AUTH_EMAIL?.trim() && process.env.AUTH_PASSWORD != null && process.env.AUTH_PASSWORD !== "",
-  );
+  return getAllowedEmails().length > 0 && getExpectedPassword() !== "";
 }
 
 function base64UrlEncode(value: string): string {
@@ -42,7 +45,9 @@ function base64UrlDecode(value: string): string {
 }
 
 function sign(payloadPart: string): string {
-  return createHmac("sha256", authSecret()).update(payloadPart).digest("base64url");
+  return createHmac("sha256", authSecret())
+    .update(payloadPart)
+    .digest("base64url");
 }
 
 function safeEqual(a: string, b: string): boolean {
@@ -62,7 +67,9 @@ export function createSessionToken(email: string): string {
   return `${payloadPart}.${signature}`;
 }
 
-export function verifySessionToken(token: string | undefined | null): SessionPayload | null {
+export function verifySessionToken(
+  token: string | undefined | null,
+): SessionPayload | null {
   if (!token) return null;
   const [payloadPart, signature] = token.split(".");
   if (!payloadPart || !signature) return null;
@@ -73,18 +80,23 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
     const payload = JSON.parse(base64UrlDecode(payloadPart)) as SessionPayload;
     if (!payload?.email || typeof payload.exp !== "number") return null;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    const allowed = getAllowedEmails();
+    if (!allowed.includes(payload.email.toLowerCase())) return null;
     return payload;
   } catch {
     return null;
   }
 }
 
-export function verifyLoginCredentials(email: string, password: string): boolean {
+export function verifyLoginCredentials(
+  email: string,
+  password: string,
+): boolean {
   if (!credentialsConfigured()) return false;
-  const expected = getExpectedCredentials();
-  const emailOk = safeEqual(email.trim().toLowerCase(), expected.email);
-  const passwordOk = safeEqual(password, expected.password);
-  return emailOk && passwordOk;
+  const normalized = email.trim().toLowerCase();
+  const allowed = getAllowedEmails();
+  if (!allowed.includes(normalized)) return false;
+  return safeEqual(password, getExpectedPassword());
 }
 
 export function sessionCookieOptions(maxAge = SESSION_MAX_AGE_SECONDS) {
