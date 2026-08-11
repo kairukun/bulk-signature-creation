@@ -15,6 +15,7 @@ export const DEPARTMENTS: Department[] = [
   "Above Store Leader",
   "Area Coach",
   "Repair and Maintenance",
+  "Entity",
 ];
 
 /** Departments that can be assigned to people (excludes All). */
@@ -42,7 +43,7 @@ export function departmentForFindMiRole(role: FindMiRole): Department {
     case "repair_technician":
       return "Repair and Maintenance";
     case "entity":
-      return "Finance";
+      return "Entity";
     case "store":
       return "Operations";
     case "other":
@@ -90,6 +91,9 @@ export function mapFindMiDepartment(
   }
   if (d.includes("repair") || d.includes("maintenance") || d.includes("tech")) {
     return "Repair and Maintenance";
+  }
+  if (d.includes("entity") || d.includes("llc") || d.includes("inc.")) {
+    return "Entity";
   }
   if (d.includes("operation") || d.includes("sales") || d.includes("support")) {
     return "Operations";

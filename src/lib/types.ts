@@ -13,7 +13,8 @@ export type Department =
   | "Operations"
   | "Above Store Leader"
   | "Area Coach"
-  | "Repair and Maintenance";
+  | "Repair and Maintenance"
+  | "Entity";
 
 export type FindMiRole =
   | "store"

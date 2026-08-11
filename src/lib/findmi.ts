@@ -120,7 +120,7 @@ const ROLE_FALLBACK: Record<
   },
   entity: {
     jobTitle: "Entity",
-    department: "Finance",
+    department: "Entity",
     group: "FindMi Entity",
   },
   other: {
