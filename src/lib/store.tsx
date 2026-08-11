@@ -17,6 +17,12 @@ import {
   diffFindMiDirectory,
   pruneDirectoryOverrides,
 } from "./findmi";
+import {
+  DEFAULT_LOGO_WIDTH,
+  DEFAULT_SIGNATURE_FONT_SIZE,
+  resolveFontSize,
+  resolveLogoWidth,
+} from "./fonts";
 import type {
   AppSettings,
   AppState,
@@ -144,6 +150,12 @@ function normalizeState(parsed: Partial<AppState>): AppState {
     templates: (parsed.templates ?? base.templates).map((t) => ({
       ...t,
       assignedDepartments: normalizeDepartmentList(t.assignedDepartments),
+      fontSize: resolveFontSize(
+        (t as SignatureTemplate).fontSize ?? DEFAULT_SIGNATURE_FONT_SIZE,
+      ),
+      logoWidth: resolveLogoWidth(
+        (t as SignatureTemplate).logoWidth ?? DEFAULT_LOGO_WIDTH,
+      ),
     })),
     campaigns: (parsed.campaigns ?? base.campaigns).map((c) => ({
       ...c,

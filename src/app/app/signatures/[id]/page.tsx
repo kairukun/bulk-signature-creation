@@ -5,7 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
 import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
-import { DEFAULT_SIGNATURE_FONT, SIGNATURE_FONTS } from "@/lib/fonts";
+import {
+  DEFAULT_LOGO_WIDTH,
+  DEFAULT_SIGNATURE_FONT,
+  DEFAULT_SIGNATURE_FONT_SIZE,
+  SIGNATURE_FONTS,
+  resolveFontSize,
+  resolveLogoWidth,
+} from "@/lib/fonts";
 import { useStore } from "@/lib/store";
 import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types";
 import { DEPARTMENTS } from "@/lib/departments";
@@ -29,13 +36,14 @@ function blankTemplate(): SignatureTemplate {
     primaryColor: "#1F4E79",
     accentColor: "#C0392B",
     fontFamily: DEFAULT_SIGNATURE_FONT,
+    fontSize: DEFAULT_SIGNATURE_FONT_SIZE,
     showPhoto: false,
     showLogo: true,
     showSocial: false,
     showThankYou: true,
     logoUrl: DEFAULT_LOGO_PATH,
     logoAlt: COMPANY_NAME,
-    logoWidth: 56,
+    logoWidth: DEFAULT_LOGO_WIDTH,
     companyNameLine1: "Dossani Paradise",
     companyNameLine2: "Management",
     companyNameLine2Color: "#C0392B",
@@ -55,8 +63,9 @@ function withDefaults(template: SignatureTemplate): SignatureTemplate {
     ...blankTemplate(),
     ...template,
     showThankYou: template.showThankYou ?? template.layout === "corporate",
-    logoWidth: template.logoWidth || 56,
+    logoWidth: resolveLogoWidth(template.logoWidth),
     fontFamily: template.fontFamily || DEFAULT_SIGNATURE_FONT,
+    fontSize: resolveFontSize(template.fontSize),
     companyNameLine1:
       typeof template.companyNameLine1 === "string"
         ? template.companyNameLine1
@@ -240,31 +249,56 @@ export default function SignatureEditorPage() {
             </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="fontFamily">Signature font</label>
-            <select
-              id="fontFamily"
-              value={template.fontFamily}
-              disabled={!canManageSignatures}
-              onChange={(e) => patch({ fontFamily: e.target.value })}
-              style={{ fontFamily: template.fontFamily }}
-            >
-              {SIGNATURE_FONTS.map((font) => (
-                <option key={font.id} value={font.value} style={{ fontFamily: font.value }}>
-                  {font.label}
-                </option>
-              ))}
-              {!SIGNATURE_FONTS.some((f) => f.value === template.fontFamily) ? (
-                <option value={template.fontFamily}>Custom</option>
-              ) : null}
-            </select>
-            <p className="muted" style={{ marginTop: "0.35rem" }}>
-              Preview:{" "}
-              <span style={{ fontFamily: template.fontFamily }}>
-                Thank You, · Dossani Paradise · Store Manager
-              </span>
-            </p>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="fontFamily">Signature font</label>
+              <select
+                id="fontFamily"
+                value={template.fontFamily}
+                disabled={!canManageSignatures}
+                onChange={(e) => patch({ fontFamily: e.target.value })}
+                style={{ fontFamily: template.fontFamily }}
+              >
+                {SIGNATURE_FONTS.map((font) => (
+                  <option key={font.id} value={font.value} style={{ fontFamily: font.value }}>
+                    {font.label}
+                  </option>
+                ))}
+                {!SIGNATURE_FONTS.some((f) => f.value === template.fontFamily) ? (
+                  <option value={template.fontFamily}>Custom</option>
+                ) : null}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="fontSize">Font size (px)</label>
+              <input
+                id="fontSize"
+                type="number"
+                min={10}
+                max={20}
+                value={template.fontSize}
+                disabled={!canManageSignatures}
+                onChange={(e) =>
+                  patch({
+                    fontSize: resolveFontSize(
+                      Number(e.target.value) || DEFAULT_SIGNATURE_FONT_SIZE,
+                    ),
+                  })
+                }
+              />
+            </div>
           </div>
+          <p className="muted" style={{ marginTop: "-0.35rem", marginBottom: "0.85rem" }}>
+            Preview:{" "}
+            <span
+              style={{
+                fontFamily: template.fontFamily,
+                fontSize: `${template.fontSize}px`,
+              }}
+            >
+              Thank You, · Dossani Paradise · Store Manager
+            </span>
+          </p>
 
           <div className="panel-card" style={{ boxShadow: "none", marginBottom: "1rem" }}>
             <h3 style={{ marginTop: 0 }}>Company logo</h3>
@@ -278,8 +312,9 @@ export default function SignatureEditorPage() {
                 src={template.logoUrl}
                 alt={template.logoAlt || "Logo preview"}
                 style={{
-                  width: template.logoWidth || 56,
+                  width: template.logoWidth || DEFAULT_LOGO_WIDTH,
                   height: "auto",
+                  maxWidth: "100%",
                   display: "block",
                   marginBottom: "0.75rem",
                   background: "#fff",
@@ -316,11 +351,15 @@ export default function SignatureEditorPage() {
                   id="logoWidth"
                   type="number"
                   min={24}
-                  max={160}
+                  max={220}
                   value={template.logoWidth}
                   disabled={!canManageSignatures}
                   onChange={(e) =>
-                    patch({ logoWidth: Number(e.target.value) || 56 })
+                    patch({
+                      logoWidth: resolveLogoWidth(
+                        Number(e.target.value) || DEFAULT_LOGO_WIDTH,
+                      ),
+                    })
                   }
                 />
               </div>

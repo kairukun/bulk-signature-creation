@@ -85,6 +85,8 @@ export interface SignatureTemplate {
   primaryColor: string;
   accentColor: string;
   fontFamily: string;
+  /** Base body font size in px (name/title scale from this). */
+  fontSize: number;
   showPhoto: boolean;
   showLogo: boolean;
   showSocial: boolean;

@@ -54,6 +54,40 @@ export const SIGNATURE_FONTS = [
 
 export const DEFAULT_SIGNATURE_FONT = SIGNATURE_FONTS[0].value;
 
+/** Default body text size for signatures (px). */
+export const DEFAULT_SIGNATURE_FONT_SIZE = 12;
+
+/** Default logo display width (px). */
+export const DEFAULT_LOGO_WIDTH = 96;
+
+export function resolveFontSize(fontSize: number | undefined | null): number {
+  const n = Number(fontSize);
+  if (!Number.isFinite(n)) return DEFAULT_SIGNATURE_FONT_SIZE;
+  return Math.min(20, Math.max(10, Math.round(n)));
+}
+
+export function resolveLogoWidth(logoWidth: number | undefined | null): number {
+  const n = Number(logoWidth);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_LOGO_WIDTH;
+  return Math.min(220, Math.max(24, Math.round(n)));
+}
+
+/** Relative sizes derived from the template body font size. */
+export function signatureFontScale(fontSize: number | undefined | null) {
+  const body = resolveFontSize(fontSize);
+  return {
+    body,
+    name: body + 4,
+    thankYou: body + 3,
+    title: body + 1,
+    company: body + 2,
+    companySecondary: body,
+    disclaimer: Math.max(8, body - 3),
+    cta: body,
+    photoInitials: body + 6,
+  };
+}
+
 /** Turn ALL CAPS / shouty text into Title Case; leave mixed-case alone. */
 export function unshout(text: string): string {
   const value = text.trim();
