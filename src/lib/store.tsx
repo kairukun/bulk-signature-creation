@@ -25,7 +25,7 @@ import type {
   SignatureTemplate,
 } from "./types";
 
-const STORAGE_KEY = "dpm-email-signatures:v4";
+const STORAGE_KEY = "dpm-email-signatures:v5";
 
 /** Fields editable in the FindMi UI that can become local overrides. */
 const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
@@ -96,6 +96,7 @@ function loadState(): AppState {
     return {
       ...base,
       ...parsed,
+      users: (parsed.users ?? []).filter((u) => u.source !== "sample"),
       stores: parsed.stores ?? [],
       findMiOverrides: parsed.findMiOverrides ?? {},
       settings: {

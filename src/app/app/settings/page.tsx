@@ -428,7 +428,7 @@ NEXT_PUBLIC_APP_URL=https://bulk-signature-creation.vercel.app`}</pre>
               setSaved(false);
             }}
           >
-            Reset sample people &amp; templates
+            Reset templates &amp; banners
           </button>
         </section>
       </div>

@@ -353,7 +353,7 @@ export default function DeployPage() {
             Recipients ready: <strong>{deployUsers.length}</strong>
             {findMiUsers.length
               ? " (FindMi directory)"
-              : " (sample / local directory — sync FindMi for production)"}
+              : " (no FindMi sync yet — sync FindMi for production)"}
           </p>
           <p className="muted" style={{ marginTop: "0.35rem" }}>
             Last deploy:{" "}

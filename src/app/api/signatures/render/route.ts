@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_CAMPAIGNS, DEMO_TEMPLATES, DEMO_USERS } from "@/lib/demo-data";
-import { renderSignatureHtml, resolveTemplateForUser } from "@/lib/render-signature";
+import {
+  DEMO_CAMPAIGNS,
+  DEMO_TEMPLATES,
+  PREVIEW_USER,
+} from "@/lib/demo-data";
+import {
+  renderSignatureHtml,
+  resolveTemplateForUser,
+} from "@/lib/render-signature";
 
 export async function GET(request: NextRequest) {
-  const email = request.nextUrl.searchParams.get("email") ?? DEMO_USERS[0].email;
-  const user = DEMO_USERS.find((u) => u.email === email) ?? DEMO_USERS[0];
+  const email = request.nextUrl.searchParams.get("email");
+  const user = {
+    ...PREVIEW_USER,
+    email: email || PREVIEW_USER.email,
+  };
   const template = resolveTemplateForUser(user, DEMO_TEMPLATES);
   if (!template) {
     return NextResponse.json({ error: "No template" }, { status: 404 });
