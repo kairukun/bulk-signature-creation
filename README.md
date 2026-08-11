@@ -8,6 +8,18 @@ This is not a multi-tenant or commercial product. It exists so DPM IT/ops can:
 2. Pull staff details from Microsoft 365 / FindMi-style fields
 3. Deploy consistent signatures to the company tenant
 
+## Access
+
+The site requires sign-in. Set on the host (Vercel):
+
+```env
+AUTH_EMAIL=
+AUTH_PASSWORD=
+AUTH_SECRET=
+```
+
+Unauthenticated visitors are redirected to `/login`. Email click-tracking (`/api/track/*`) stays public.
+
 ## Local run
 
 ```bash

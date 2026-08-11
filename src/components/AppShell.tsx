@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { APP_NAME, COMPANY_SHORT } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
@@ -24,7 +24,14 @@ const ROLES: { value: Role; label: string }[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { settings, setRole, hydrated } = useStore();
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <div className="app-shell">
@@ -74,6 +81,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ? "Tenant connected"
                 : "Sample data"}
           </p>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{
+              marginTop: "0.75rem",
+              width: "100%",
+              color: "#edf4f3",
+              borderColor: "rgba(255,255,255,0.25)",
+            }}
+            onClick={() => void signOut()}
+          >
+            Sign out
+          </button>
         </div>
       </aside>
       <main className="main-panel">{children}</main>
