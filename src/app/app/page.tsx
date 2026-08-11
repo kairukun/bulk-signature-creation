@@ -5,90 +5,96 @@ import { useStore } from "@/lib/store";
 
 export default function DashboardPage() {
   const { users, templates, campaigns, settings, hydrated } = useStore();
-  const activeCampaigns = campaigns.filter((c) => c.active).length;
-  const totalClicks = campaigns.reduce((sum, c) => sum + c.clicks, 0);
+  const activeBanners = campaigns.filter((c) => c.active).length;
   const assigned = users.filter((u) => u.signatureId).length;
 
   if (!hydrated) {
-    return <p className="muted">Loading workspace…</p>;
+    return <p className="muted">Loading…</p>;
   }
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Dashboard</h1>
+          <h1>Email signatures</h1>
           <p>
-            Manage signatures for {settings.companyName}. Demo data is ready —
-            connect Microsoft 365 when you want live directory sync.
+            Internal tool for {settings.companyName}. Keep one corporate signature
+            in sync across Microsoft 365 — Outlook, OWA, and mobile.
           </p>
         </div>
-        <Link href="/app/signatures/new" className="btn btn-primary">
-          New signature
+        <Link href="/app/deploy" className="btn btn-primary">
+          Deploy to Microsoft 365
         </Link>
       </div>
 
       <div className="stat-grid">
         <div className="stat-card">
           <strong>{users.length}</strong>
-          <span className="muted">Directory users</span>
+          <span className="muted">People in directory</span>
         </div>
         <div className="stat-card">
           <strong>{templates.length}</strong>
-          <span className="muted">Templates</span>
+          <span className="muted">Signature templates</span>
         </div>
         <div className="stat-card">
-          <strong>{activeCampaigns}</strong>
-          <span className="muted">Active campaigns</span>
+          <strong>{assigned}</strong>
+          <span className="muted">Assigned signatures</span>
         </div>
         <div className="stat-card">
-          <strong>{totalClicks.toLocaleString()}</strong>
-          <span className="muted">Banner clicks</span>
+          <strong>{activeBanners}</strong>
+          <span className="muted">Active banners</span>
         </div>
       </div>
 
       <div className="card-grid">
         <article className="panel-card">
-          <h3>Coverage</h3>
+          <h3>1. Signature template</h3>
           <p style={{ marginTop: "0.5rem" }}>
-            {assigned}/{users.length} users have an assigned signature template.
+            Edit the corporate layout, logo, and disclaimer used for staff mail.
           </p>
-          <Link href="/app/users" className="btn btn-secondary" style={{ marginTop: "1rem" }}>
-            Review directory
+          <Link
+            href="/app/signatures"
+            className="btn btn-secondary"
+            style={{ marginTop: "1rem" }}
+          >
+            Open signatures
           </Link>
         </article>
         <article className="panel-card">
-          <h3>Microsoft 365</h3>
+          <h3>2. People</h3>
+          <p style={{ marginTop: "0.5rem" }}>
+            Review names, titles, and addresses (FindMi / Entra). Sync from your
+            Microsoft 365 tenant when credentials are configured.
+          </p>
+          <Link
+            href="/app/users"
+            className="btn btn-secondary"
+            style={{ marginTop: "1rem" }}
+          >
+            Open people
+          </Link>
+        </article>
+        <article className="panel-card">
+          <h3>3. Deploy</h3>
           <p style={{ marginTop: "0.5rem" }}>
             Status:{" "}
             <span className={`badge ${settings.m365Connected ? "ok" : ""}`}>
-              {settings.m365Connected ? "Connected" : "Demo mode"}
+              {settings.m365Connected ? "Ready for tenant" : "Sample mode"}
             </span>
           </p>
-          <p style={{ marginTop: "0.5rem" }}>
-            Last sync:{" "}
-            {settings.lastSyncAt
-              ? new Date(settings.lastSyncAt).toLocaleString()
-              : "Never"}
+          <p style={{ marginTop: "0.5rem" }} className="muted">
+            Last deploy:{" "}
+            {settings.lastDeployAt
+              ? new Date(settings.lastDeployAt).toLocaleString()
+              : "Not yet"}
           </p>
-          <Link href="/app/settings" className="btn btn-secondary" style={{ marginTop: "1rem" }}>
-            Connection settings
+          <Link
+            href="/app/settings"
+            className="btn btn-ghost"
+            style={{ marginTop: "1rem" }}
+          >
+            M365 setup
           </Link>
-        </article>
-        <article className="panel-card">
-          <h3>Next actions</h3>
-          <p style={{ marginTop: "0.5rem" }}>
-            Design a template, attach a campaign banner, assign by department,
-            then deploy.
-          </p>
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
-            <Link href="/app/campaigns" className="btn btn-accent">
-              Campaigns
-            </Link>
-            <Link href="/app/deploy" className="btn btn-ghost">
-              Deploy
-            </Link>
-          </div>
         </article>
       </div>
     </div>

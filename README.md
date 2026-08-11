@@ -1,54 +1,48 @@
-# Bulk Signature Creation
+# DPM Email Signatures
 
-Centralized Microsoft 365 email signature manager inspired by [BulkSignature](https://bulksignature.com).
+Internal Microsoft 365 email signature tool for **Dossani Paradise Management** only.
 
-## What's in v1
+This is not a multi-tenant or commercial product. It exists so DPM IT/ops can:
 
-- Visual signature templates (classic / modern / compact / stacked)
-- Live desktop & mobile previews across demo users
-- Directory sync UI (demo Contoso users + Graph-ready settings)
-- Department / group assignment
-- Banner campaigns with scheduling + click tracking (`/api/track/[campaignId]`)
-- Role simulation: Admin, IT, Marketing, Viewer
-- Deploy flow for Demo / Exchange rule / Outlook roaming modes
+1. Maintain the corporate signature (logo, disclaimer, layout)
+2. Pull staff details from Microsoft 365 / FindMi-style fields
+3. Deploy consistent signatures to the company tenant
 
-## Quick start
+## Local run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) (redirects to `/app`).
 
-## Microsoft 365 (production)
+## Connect the DPM tenant
 
-1. Register an app in Entra ID
-2. Grant admin consent for Microsoft Graph / Exchange permissions needed for user read + mailbox signature write (or use Exchange Online transport rules)
-3. Set environment variables:
+1. Register one Entra ID app in the DPM tenant
+2. Grant admin consent for directory read + mailbox/signature (or Exchange transport rules)
+3. Set:
 
 ```env
 AZURE_AD_TENANT_ID=
 AZURE_AD_CLIENT_ID=
 AZURE_AD_CLIENT_SECRET=
-NEXT_PUBLIC_APP_URL=https://your-deployment.vercel.app
+NEXT_PUBLIC_APP_URL=
 ```
 
-The deployed demo runs fully in-browser with localStorage so you can test the product flow without tenant credentials.
+Until those are set, the app uses sample people so you can validate layout and deploy flow safely.
 
-## Useful routes
+## App areas
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Landing |
-| `/app` | Dashboard |
-| `/app/signatures` | Templates |
-| `/app/users` | Directory |
-| `/app/campaigns` | Banner campaigns |
-| `/app/deploy` | Deploy + HTML export |
-| `/api/signatures/render?email=` | Server-rendered HTML sample |
-| `/api/track/[campaignId]?to=` | Click tracker redirect |
+| `/app` | Overview |
+| `/app/signatures` | Corporate template + logo |
+| `/app/users` | People / assignments |
+| `/app/campaigns` | Optional banners |
+| `/app/deploy` | Deploy to Microsoft 365 |
+| `/app/settings` | Tenant setup |
 
 ## Stack
 
-Next.js (App Router) · TypeScript · Tailwind CSS v4
+Next.js · TypeScript · Tailwind CSS

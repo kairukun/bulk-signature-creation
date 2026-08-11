@@ -2,19 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { APP_NAME, COMPANY_SHORT } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/types";
 
 const NAV = [
-  { href: "/app", label: "Dashboard" },
+  { href: "/app", label: "Overview" },
   { href: "/app/signatures", label: "Signatures" },
-  { href: "/app/users", label: "Directory" },
-  { href: "/app/campaigns", label: "Campaigns" },
-  { href: "/app/deploy", label: "Deploy" },
-  { href: "/app/settings", label: "Settings" },
+  { href: "/app/users", label: "People" },
+  { href: "/app/campaigns", label: "Banners" },
+  { href: "/app/deploy", label: "Deploy to M365" },
+  { href: "/app/settings", label: "M365 setup" },
 ];
 
-const ROLES: Role[] = ["admin", "it", "marketing", "viewer"];
+const ROLES: { value: Role; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "it", label: "IT" },
+  { value: "marketing", label: "Marketing" },
+  { value: "viewer", label: "View only" },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -23,13 +29,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link href="/" className="brand">
-          <span className="brand-mark">B</span>
+        <div className="brand">
+          <span className="brand-mark">{COMPANY_SHORT.slice(0, 1)}</span>
           <span>
-            Bulk Signature
-            <small>Creation</small>
+            {APP_NAME}
+            <small>Internal · {settings.companyName}</small>
           </span>
-        </Link>
+        </div>
         <nav>
           {NAV.map((item) => {
             const active =
@@ -48,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-footer">
-          <label htmlFor="role-switch">View as role</label>
+          <label htmlFor="role-switch">Your access</label>
           <select
             id="role-switch"
             value={settings.role}
@@ -56,13 +62,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             disabled={!hydrated}
           >
             {ROLES.map((role) => (
-              <option key={role} value={role}>
-                {role}
+              <option key={role.value} value={role.value}>
+                {role.label}
               </option>
             ))}
           </select>
           <p className="muted">
-            {settings.m365Connected ? "M365 connected" : "Demo directory"}
+            {settings.m365Connected
+              ? "Tenant connected"
+              : "Sample people (not live yet)"}
           </p>
         </div>
       </aside>

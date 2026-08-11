@@ -67,8 +67,11 @@ export default function CampaignsPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Campaigns</h1>
-          <p>Schedule signature banners and measure click-through performance.</p>
+          <h1>Banners</h1>
+          <p>
+            Optional notices under the signature (leasing promos, webinars). For
+            internal DPM use — not a marketing SaaS.
+          </p>
         </div>
         {canManageCampaigns ? (
           <button
@@ -76,7 +79,7 @@ export default function CampaignsPage() {
             className="btn btn-primary"
             onClick={() => setEditing(emptyCampaign())}
           >
-            New campaign
+            New banner
           </button>
         ) : (
           <span className="badge">Marketing/IT/Admin can edit</span>

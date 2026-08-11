@@ -69,10 +69,11 @@ export default function DeployPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Deploy</h1>
+          <h1>Deploy to Microsoft 365</h1>
           <p>
-            Push rendered HTML signatures to Microsoft 365. Demo mode simulates
-            Exchange Online deployment.
+            Apply the corporate signature to {settings.companyName} mailboxes in
+            your tenant. Sample mode does not change Exchange until credentials
+            are connected.
           </p>
         </div>
         <button
@@ -81,7 +82,7 @@ export default function DeployPage() {
           onClick={deployAll}
           disabled={!canDeploy || busy}
         >
-          {busy ? "Deploying…" : "Deploy all signatures"}
+          {busy ? "Deploying…" : "Deploy to tenant"}
         </button>
       </div>
 
@@ -105,7 +106,7 @@ export default function DeployPage() {
                 })
               }
             >
-              <option value="demo">Demo simulation</option>
+              <option value="demo">Sample run (no mailbox changes)</option>
               <option value="exchange-rule">
                 Exchange Online transport / disclaimer rule
               </option>
@@ -121,20 +122,20 @@ export default function DeployPage() {
               : "Not yet"}
           </p>
           <div style={{ marginTop: "1rem" }}>
-            <h3>What gets deployed</h3>
+            <h3>What this deploys</h3>
             <ul style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-              <li>{users.length} mailbox signatures resolved from templates</li>
-              <li>Active campaign banners with tracked links</li>
-              <li>Department / group assignment rules</li>
+              <li>Corporate HTML for {users.length} people</li>
+              <li>Any active leasing / notice banners</li>
+              <li>Department assignment rules</li>
             </ul>
           </div>
           <div style={{ marginTop: "1rem" }}>
-            <h3>Production checklist</h3>
+            <h3>Before going live</h3>
             <ol style={{ color: "var(--muted)", lineHeight: 1.6, paddingLeft: "1.1rem" }}>
-              <li>Register an Entra ID app with MailboxSettings / Exchange permissions</li>
-              <li>Grant admin consent for your tenant</li>
-              <li>Set AZURE_AD_* env vars on the host</li>
-              <li>Switch deploy mode away from Demo</li>
+              <li>Register one Entra ID app in the DPM tenant</li>
+              <li>Grant admin consent for directory + mailbox/signature access</li>
+              <li>Add AZURE_AD_* values under M365 setup / host env</li>
+              <li>Switch mode off “Sample run”</li>
             </ol>
           </div>
         </section>

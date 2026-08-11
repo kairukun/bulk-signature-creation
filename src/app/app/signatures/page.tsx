@@ -13,7 +13,10 @@ export default function SignaturesPage() {
       <div className="page-header">
         <div>
           <h1>Signatures</h1>
-          <p>Create templates and assign them across departments or groups.</p>
+          <p>
+            Corporate templates for Dossani Paradise Management. Upload the logo,
+            set the disclaimer, and assign by department if needed.
+          </p>
         </div>
         {canManageSignatures ? (
           <Link href="/app/signatures/new" className="btn btn-primary">

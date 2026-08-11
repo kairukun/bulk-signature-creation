@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
-import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
+import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types";
 
@@ -32,8 +32,8 @@ const MAX_LOGO_BYTES = 900_000;
 function blankTemplate(): SignatureTemplate {
   return {
     id: `t-${crypto.randomUUID().slice(0, 8)}`,
-    name: "New signature",
-    description: "Company signature with logo",
+    name: "Corporate signature",
+    description: `Standard ${COMPANY_NAME} email signature`,
     layout: "corporate",
     primaryColor: "#1F4E79",
     accentColor: "#C0392B",
@@ -43,14 +43,14 @@ function blankTemplate(): SignatureTemplate {
     showSocial: false,
     showThankYou: true,
     logoUrl: DEFAULT_LOGO_PATH,
-    logoAlt: "Dossani Paradise Management",
+    logoAlt: COMPANY_NAME,
     logoWidth: 56,
     companyNameLine1: "DOSSANI PARADISE",
     companyNameLine2: "MANAGEMENT",
     companyNameLine2Color: "#C0392B",
     ctaLabel: "",
     ctaUrl: "",
-    websiteDisplay: "www.DossaniParadise.com",
+    websiteDisplay: COMPANY_WEBSITE_DISPLAY,
     disclaimer: DOSSANI_DISCLAIMER,
     assignedDepartments: ["All"],
     assignedGroups: [],
@@ -166,7 +166,8 @@ export default function SignatureEditorPage() {
         <div>
           <h1>{isNew ? "New signature" : template.name}</h1>
           <p>
-            Upload a logo and match the Dossani corporate layout for every user.
+            Upload the company logo and adjust the corporate layout used for
+            Dossani Paradise Management staff.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

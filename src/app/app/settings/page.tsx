@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { COMPANY_NAME } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 
 export default function SettingsPage() {
@@ -9,32 +10,26 @@ export default function SettingsPage() {
 
   if (!hydrated) return <p className="muted">Loading…</p>;
 
-  function save() {
-    setSaved(true);
-  }
-
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Settings</h1>
-          <p>Company profile, Microsoft 365 connection, and workspace reset.</p>
+          <h1>Microsoft 365 setup</h1>
+          <p>
+            Connect this internal tool to the {COMPANY_NAME} Entra ID / Exchange
+            Online tenant. Not a multi-company product — one tenant only.
+          </p>
         </div>
       </div>
 
-      {saved ? <p className="toast">Settings updated in this browser.</p> : null}
+      {saved ? <p className="toast">Saved in this browser.</p> : null}
 
       <div className="split">
         <section className="panel-card">
-          <h3>Company</h3>
+          <h3>Organization</h3>
           <div className="field" style={{ marginTop: "0.75rem" }}>
-            <label htmlFor="company">Company name</label>
-            <input
-              id="company"
-              value={settings.companyName}
-              disabled={!canDeploy}
-              onChange={(e) => updateSettings({ companyName: e.target.value })}
-            />
+            <label htmlFor="company">Company</label>
+            <input id="company" value={COMPANY_NAME} disabled readOnly />
           </div>
           <div className="field">
             <label htmlFor="tenant">Entra tenant ID</label>
@@ -55,25 +50,25 @@ export default function SettingsPage() {
                 updateSettings({ m365Connected: e.target.checked })
               }
             />{" "}
-            Mark Microsoft 365 as connected (demo toggle)
+            Tenant connection configured (toggle until live Graph auth is wired)
           </label>
           <div style={{ marginTop: "1rem" }}>
             <button
               type="button"
               className="btn btn-primary"
               disabled={!canDeploy}
-              onClick={save}
+              onClick={() => setSaved(true)}
             >
-              Save settings
+              Save
             </button>
           </div>
         </section>
 
         <section className="panel-card">
-          <h3>Environment variables</h3>
+          <h3>Host environment</h3>
           <p className="muted" style={{ marginTop: "0.5rem" }}>
-            For live Graph sync / Exchange deploy, configure these on Vercel or
-            your host:
+            Set these on the server that runs this app (e.g. Vercel project for
+            DPM only):
           </p>
           <pre
             style={{
@@ -86,13 +81,13 @@ export default function SettingsPage() {
               fontSize: "0.8rem",
               lineHeight: 1.5,
             }}
-          >{`AZURE_AD_TENANT_ID=
-AZURE_AD_CLIENT_ID=
-AZURE_AD_CLIENT_SECRET=
-NEXT_PUBLIC_APP_URL=`}</pre>
+          >{`AZURE_AD_TENANT_ID=<dpm-tenant-id>
+AZURE_AD_CLIENT_ID=<app-registration-id>
+AZURE_AD_CLIENT_SECRET=<secret>
+NEXT_PUBLIC_APP_URL=<this-app-url>`}</pre>
           <p className="muted" style={{ marginTop: "0.75rem" }}>
-            Current role switcher is in the sidebar so you can test Admin, IT,
-            Marketing, and Viewer permissions.
+            Use the sidebar access menu to preview IT vs Marketing permissions
+            for DPM staff.
           </p>
           <button
             type="button"
@@ -103,7 +98,7 @@ NEXT_PUBLIC_APP_URL=`}</pre>
               setSaved(false);
             }}
           >
-            Reset demo data
+            Reset sample people &amp; templates
           </button>
         </section>
       </div>

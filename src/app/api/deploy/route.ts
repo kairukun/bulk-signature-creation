@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { COMPANY_NAME } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       mode,
-      message: `Demo deploy complete: resolved ${userCount} users across ${templateCount} templates. No mailboxes were changed.`,
+      message: `Sample deploy for ${COMPANY_NAME}: prepared ${userCount} people across ${templateCount} template(s). No mailboxes were changed.`,
     });
   }
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       mode,
       message:
-        "Exchange mode selected. Configure AZURE_AD_* credentials and Exchange Online PowerShell/Graph to publish transport rules. This demo host did not mutate your tenant.",
+        "Exchange mode selected. With DPM tenant credentials, this would publish the signature via Exchange Online. Credentials are not live on this host yet.",
     });
   }
 
@@ -27,6 +28,6 @@ export async function POST(request: NextRequest) {
     ok: true,
     mode,
     message:
-      "Outlook roaming mode selected. With Graph MailboxSettings permissions, signatures would be written per user. Credentials are not configured on this demo deployment.",
+      "Outlook roaming mode selected. With Graph permissions in the DPM tenant, signatures would be written per mailbox. Credentials are not live on this host yet.",
   });
 }

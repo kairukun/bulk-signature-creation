@@ -26,10 +26,10 @@ export default function UsersPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1>Directory</h1>
+          <h1>People</h1>
           <p>
-            Demo users mirror Entra ID attributes. Connect Microsoft Graph in
-            Settings for live sync.
+            Staff pulled from Microsoft 365 (or sample data until the tenant is
+            connected). Addresses can come from FindMi / directory fields.
           </p>
         </div>
         <button
@@ -46,7 +46,7 @@ export default function UsersPage() {
         <p>
           Mode:{" "}
           <span className={`badge ${settings.m365Connected ? "ok" : ""}`}>
-            {settings.m365Connected ? "Microsoft 365" : "Demo Contoso tenant"}
+            {settings.m365Connected ? "Microsoft 365 tenant" : "Sample people list"}
           </span>
         </p>
         <p className="muted" style={{ marginTop: "0.4rem" }}>

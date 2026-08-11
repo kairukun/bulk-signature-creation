@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import { APP_NAME, COMPANY_NAME } from "@/lib/constants";
 import "./globals.css";
 
 const display = Fraunces({
@@ -14,9 +15,8 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Bulk Signature Creation",
-  description:
-    "Centrally design, sync, and deploy Microsoft 365 email signatures with campaigns and role-based control.",
+  title: APP_NAME,
+  description: `Internal Microsoft 365 email signature tool for ${COMPANY_NAME}.`,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
