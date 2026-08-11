@@ -68,8 +68,14 @@ function withDefaults(template: SignatureTemplate): SignatureTemplate {
     showThankYou: template.showThankYou ?? template.layout === "corporate",
     logoWidth: template.logoWidth || 56,
     fontFamily: template.fontFamily || DEFAULT_SIGNATURE_FONT,
-    companyNameLine1: template.companyNameLine1 || template.logoAlt || "",
-    companyNameLine2: template.companyNameLine2 || "",
+    companyNameLine1:
+      typeof template.companyNameLine1 === "string"
+        ? template.companyNameLine1
+        : "",
+    companyNameLine2:
+      typeof template.companyNameLine2 === "string"
+        ? template.companyNameLine2
+        : "",
     companyNameLine2Color: template.companyNameLine2Color || template.accentColor,
     websiteDisplay: template.websiteDisplay || "",
   };

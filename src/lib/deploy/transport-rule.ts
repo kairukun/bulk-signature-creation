@@ -29,8 +29,10 @@ export function buildTokenDisclaimerHtml(
   const color = template?.primaryColor || "#1F4E79";
   const accent = template?.companyNameLine2Color || template?.accentColor || "#C0392B";
   const font = template?.fontFamily || DEFAULT_SIGNATURE_FONT;
-  const line1 = escapeHtml(template?.companyNameLine1 || "Dossani Paradise");
-  const line2 = escapeHtml(template?.companyNameLine2 || "Management");
+  const line1Raw = (template?.companyNameLine1 || "").trim();
+  const line2Raw = (template?.companyNameLine2 || "").trim();
+  const line1 = escapeHtml(line1Raw);
+  const line2 = escapeHtml(line2Raw);
   const website = escapeHtml(template?.websiteDisplay || COMPANY_WEBSITE_DISPLAY);
   const disclaimer = escapeHtml(template?.disclaimer || DOSSANI_DISCLAIMER);
   const showThankYou = template?.showThankYou !== false;
@@ -43,8 +45,16 @@ export function buildTokenDisclaimerHtml(
   }
   <tr><td style="font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">%%DisplayName%%</td></tr>
   <tr><td style="font:italic 13px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">%%Title%%</td></tr>
-  <tr><td style="padding-top:10px;font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};">${line1}</td></tr>
-  <tr><td style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(accent)};">${line2}</td></tr>
+  ${
+    line1
+      ? `<tr><td style="padding-top:10px;font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};">${line1}</td></tr>`
+      : ""
+  }
+  ${
+    line2
+      ? `<tr><td style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(accent)};">${line2}</td></tr>`
+      : ""
+  }
   <tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:8px;">%%Street%%</td></tr>
   <tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">%%City%%, %%State%% %%Zip%%</td></tr>
   <tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">%%PhoneNumber%%</td></tr>

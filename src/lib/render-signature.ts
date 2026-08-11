@@ -75,8 +75,9 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
   if (!template.showLogo) return "";
   const width = template.logoWidth || 56;
   const src = absoluteAssetUrl(origin, template.logoUrl || DEFAULT_LOGO_PATH);
-  const line1 = unshout(template.companyNameLine1 || template.logoAlt);
-  const line2 = unshout(template.companyNameLine2 || "");
+  // Empty company name lines mean no text beside the logo (do not fall back to logoAlt).
+  const line1 = unshout((template.companyNameLine1 || "").trim());
+  const line2 = unshout((template.companyNameLine2 || "").trim());
   const line2Color = template.companyNameLine2Color || template.accentColor;
   const font = template.fontFamily || DEFAULT_SIGNATURE_FONT;
   const color = template.primaryColor;
@@ -85,17 +86,24 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
     ? `<img src="${escapeHtml(src)}" width="${width}" height="${width}" alt="${escapeHtml(template.logoAlt || "Logo")}" style="display:block;border:0;outline:none;text-decoration:none;width:${width}px;height:auto;max-width:${width}px;" />`
     : "";
 
-  const nameCell = `
+  const nameCell =
+    line1 || line2
+      ? `
     <td style="vertical-align:middle;padding-left:${image ? "10px" : "0"};">
-      <div style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};line-height:1.2;">
-        ${escapeHtml(line1)}
-      </div>
       ${
-        line2
-          ? `<div style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.2;margin-top:2px;">${escapeHtml(line2)}</div>`
+        line1
+          ? `<div style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};line-height:1.2;">${escapeHtml(line1)}</div>`
           : ""
       }
-    </td>`;
+      ${
+        line2
+          ? `<div style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.2;${line1 ? "margin-top:2px;" : ""}">${escapeHtml(line2)}</div>`
+          : ""
+      }
+    </td>`
+      : "";
+
+  if (!image && !nameCell) return "";
 
   return `<table cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;margin-bottom:8px;">
     <tr>
