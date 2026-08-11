@@ -4,8 +4,11 @@ import { FINDMI_API_URL, parseFindMiPayload } from "@/lib/findmi";
 export async function GET() {
   try {
     const res = await fetch(FINDMI_API_URL, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 60 },
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+      },
+      cache: "no-store",
     });
 
     if (!res.ok) {
@@ -20,11 +23,13 @@ export async function GET() {
 
     const data = await res.json();
     const parsed = parseFindMiPayload(data);
+    const syncedAt = new Date().toISOString();
 
     return NextResponse.json({
       ok: true,
       source: "https://dossaniparadise.github.io/DPM-FindMi/",
       api: FINDMI_API_URL,
+      syncedAt,
       count: parsed.users.length,
       counts: parsed.counts,
       stores: parsed.stores,

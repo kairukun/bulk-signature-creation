@@ -10,7 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { createInitialState } from "./demo-data";
-import { applyDirectoryOverrides } from "./findmi";
+import {
+  applyDirectoryOverrides,
+  diffFindMiDirectory,
+  pruneDirectoryOverrides,
+} from "./findmi";
 import type {
   AppSettings,
   AppState,
@@ -23,6 +27,7 @@ import type {
 
 const STORAGE_KEY = "dpm-email-signatures:v3";
 
+/** Fields editable in the FindMi UI that can become local overrides. */
 const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
   "displayName",
   "jobTitle",
@@ -34,7 +39,6 @@ const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
   "storeName",
   "storeNumber",
   "company",
-  "signatureId",
 ];
 
 interface StoreContextValue extends AppState {
@@ -51,6 +55,11 @@ interface StoreContextValue extends AppState {
   syncFindMiStores: () => Promise<{
     count: number;
     counts: Record<string, number>;
+    added: number;
+    removed: number;
+    updated: number;
+    localEditsKept: number;
+    syncedAt: string;
   }>;
   applyFindMiSync: (payload: {
     stores: FindMiStoreRecord[];
@@ -180,25 +189,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ...s, users: nextUsers };
       }
 
+      // Signature template assignment is app-side — keep it on the user, not as FindMi override.
+      const signatureChanged = user.signatureId !== previous.signatureId;
       const patch: Partial<DirectoryUser> = {
         ...(s.findMiOverrides[user.id] || {}),
       };
+      // Never persist signatureId inside FindMi override blobs.
+      delete (patch as { signatureId?: string }).signatureId;
+
+      let fieldChanged = false;
       for (const key of EDITABLE_OVERRIDE_FIELDS) {
         const value = user[key];
         if (value !== previous[key]) {
           (patch as Record<string, unknown>)[key] = value;
+          fieldChanged = true;
         }
       }
+
+      if (!fieldChanged && !signatureChanged) {
+        return { ...s, users: nextUsers };
+      }
+
+      const hasOverrideFields = EDITABLE_OVERRIDE_FIELDS.some(
+        (key) => key in patch,
+      );
 
       return {
         ...s,
         users: nextUsers.map((u) =>
-          u.id === user.id ? { ...u, editedLocally: true } : u,
+          u.id === user.id
+            ? { ...u, editedLocally: hasOverrideFields || u.editedLocally }
+            : u,
         ),
-        findMiOverrides: {
-          ...s.findMiOverrides,
-          [user.id]: patch,
-        },
+        findMiOverrides: hasOverrideFields
+          ? {
+              ...s.findMiOverrides,
+              [user.id]: patch,
+            }
+          : s.findMiOverrides,
       };
     });
   }, []);
@@ -218,35 +246,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const applyFindMiSync = useCallback(
     (payload: { stores: FindMiStoreRecord[]; users: DirectoryUser[] }) => {
+      let syncStats = {
+        added: 0,
+        removed: 0,
+        updated: 0,
+        localEditsKept: 0,
+      };
+
       setState((s) => {
         const defaultSig =
           s.templates.find((t) => t.id === "t-dossani")?.id ||
           s.templates[0]?.id ||
           "t-dossani";
 
-        const previousById = new Map(s.users.map((u) => [u.id, u] as const));
+        const previousFindMi = s.users.filter((u) => u.source === "findmi");
+        const previousById = new Map(
+          previousFindMi.map((u) => [u.id, u] as const),
+        );
 
-        const synced = payload.users.map((mapped) => {
-          const withSig = {
-            ...mapped,
-            signatureId:
-              previousById.get(mapped.id)?.signatureId ||
-              mapped.signatureId ||
-              defaultSig,
-          };
-          return withSig;
-        });
+        // Fresh FindMi payload for every store/person (full refresh).
+        const refreshed = payload.users.map((mapped) => ({
+          ...mapped,
+          signatureId:
+            previousById.get(mapped.id)?.signatureId ||
+            mapped.signatureId ||
+            defaultSig,
+        }));
 
-        const withOverrides = applyDirectoryOverrides(
-          synced,
+        const diff = diffFindMiDirectory(previousFindMi, refreshed);
+        const prunedOverrides = pruneDirectoryOverrides(
+          refreshed,
           s.findMiOverrides,
         );
+        const withOverrides = applyDirectoryOverrides(
+          refreshed,
+          prunedOverrides,
+        );
         const nonFindMi = s.users.filter((u) => u.source !== "findmi");
+
+        syncStats = {
+          added: diff.added,
+          removed: diff.removed,
+          updated: diff.updated,
+          localEditsKept: Object.keys(prunedOverrides).length,
+        };
 
         return {
           ...s,
           stores: payload.stores,
           users: [...withOverrides, ...nonFindMi],
+          findMiOverrides: prunedOverrides,
           settings: {
             ...s.settings,
             findMiConnected: true,
@@ -255,23 +304,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
         };
       });
+
+      return syncStats;
     },
     [],
   );
 
   const syncFindMiStores = useCallback(async () => {
-    const res = await fetch("/api/findmi/stores");
+    const res = await fetch(`/api/findmi/stores?ts=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || "FindMi sync failed");
     }
-    applyFindMiSync({
+    const stats = applyFindMiSync({
       stores: data.stores as FindMiStoreRecord[],
       users: data.users as DirectoryUser[],
     });
     return {
       count: data.count as number,
       counts: (data.counts || {}) as Record<string, number>,
+      added: stats.added,
+      removed: stats.removed,
+      updated: stats.updated,
+      localEditsKept: stats.localEditsKept,
+      syncedAt: String(data.syncedAt || new Date().toISOString()),
     };
   }, [applyFindMiSync]);
 

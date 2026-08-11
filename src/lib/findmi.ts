@@ -269,16 +269,99 @@ export function applyDirectoryOverrides(
 ): DirectoryUser[] {
   return users.map((user) => {
     const patch = overrides[user.id];
-    if (!patch) return user;
+    if (!patch) return { ...user, editedLocally: false };
+    const { signatureId: _sig, ...findMiPatch } = patch;
+    const hasFindMiEdits = Object.keys(findMiPatch).length > 0;
     return {
       ...user,
-      ...patch,
+      ...findMiPatch,
       id: user.id,
-      source: "findmi",
+      source: "findmi" as const,
       findMiRole: user.findMiRole,
       findMiId: user.findMiId,
       storeId: user.storeId,
-      editedLocally: true,
+      // Prefer existing app assignment on the refreshed user object.
+      signatureId: user.signatureId || patch.signatureId,
+      editedLocally: hasFindMiEdits,
     };
   });
+}
+
+const OVERRIDE_COMPARE_FIELDS: (keyof DirectoryUser)[] = [
+  "displayName",
+  "jobTitle",
+  "email",
+  "phone",
+  "streetAddress",
+  "cityStateZip",
+  "location",
+  "storeName",
+  "storeNumber",
+  "company",
+];
+
+/**
+ * Keep only local edits that still differ from fresh FindMi values.
+ * Drop stale override keys so later FindMi changes can flow through.
+ */
+export function pruneDirectoryOverrides(
+  users: DirectoryUser[],
+  overrides: Record<string, Partial<DirectoryUser>>,
+): Record<string, Partial<DirectoryUser>> {
+  const byId = new Map(users.map((u) => [u.id, u] as const));
+  const next: Record<string, Partial<DirectoryUser>> = {};
+
+  for (const [userId, patch] of Object.entries(overrides)) {
+    const fresh = byId.get(userId);
+    if (!fresh) continue; // person/store left FindMi — drop overrides
+
+    const kept: Partial<DirectoryUser> = {};
+    for (const key of OVERRIDE_COMPARE_FIELDS) {
+      if (!(key in patch)) continue;
+      const localValue = patch[key];
+      if (localValue !== fresh[key]) {
+        (kept as Record<string, unknown>)[key] = localValue;
+      }
+    }
+
+    if (Object.keys(kept).length) {
+      next[userId] = kept;
+    }
+  }
+
+  return next;
+}
+
+export function diffFindMiDirectory(
+  previous: DirectoryUser[],
+  next: DirectoryUser[],
+): { added: number; removed: number; updated: number; unchanged: number } {
+  const prevMap = new Map(
+    previous.filter((u) => u.source === "findmi").map((u) => [u.id, u]),
+  );
+  const nextIds = new Set(next.map((u) => u.id));
+
+  let added = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  for (const user of next) {
+    const before = prevMap.get(user.id);
+    if (!before) {
+      added += 1;
+      continue;
+    }
+    const changed = OVERRIDE_COMPARE_FIELDS.some(
+      (key) => before[key] !== user[key],
+    );
+    if (changed) updated += 1;
+    else unchanged += 1;
+  }
+
+  let removed = 0;
+  for (const id of prevMap.keys()) {
+    if (!nextIds.has(id)) removed += 1;
+  }
+
+  return { added, removed, updated, unchanged };
 }

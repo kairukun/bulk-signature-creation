@@ -96,7 +96,7 @@ export default function UsersPage() {
       const result = await syncFindMiStores();
       const c = result.counts;
       setMessage(
-        `Synced ${result.count} FindMi records — stores ${c.store || 0}, VPs ${c.vp || 0}, directors ${c.director || 0}, district managers ${c.district_manager || 0}, techs ${c.repair_technician || 0}. Local edits were kept.`,
+        `Refreshed FindMi — ${result.count} records (stores ${c.store || 0}, VPs ${c.vp || 0}, directors ${c.director || 0}, district managers ${c.district_manager || 0}, techs ${c.repair_technician || 0}). Updated ${result.updated}, added ${result.added}, removed ${result.removed}. Local edits kept: ${result.localEditsKept}.`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "FindMi sync failed");
@@ -145,7 +145,8 @@ export default function UsersPage() {
             >
               DPM FindMi
             </a>
-            . Edit any field locally for signatures — edits survive re-sync.
+            . Each sync pulls the latest FindMi data for every store and person.
+            Local edits stay applied only where they still differ.
           </p>
         </div>
         <button
@@ -154,7 +155,7 @@ export default function UsersPage() {
           onClick={sync}
           disabled={!canDeploy || busy}
         >
-          {busy ? "Syncing…" : "Sync from FindMi"}
+          {busy ? "Refreshing…" : "Sync from FindMi"}
         </button>
       </div>
 
