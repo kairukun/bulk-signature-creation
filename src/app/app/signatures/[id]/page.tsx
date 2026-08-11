@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
 import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
+import { DEFAULT_SIGNATURE_FONT, SIGNATURE_FONTS } from "@/lib/fonts";
 import { useStore } from "@/lib/store";
 import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types";
 
@@ -37,7 +38,7 @@ function blankTemplate(): SignatureTemplate {
     layout: "corporate",
     primaryColor: "#1F4E79",
     accentColor: "#C0392B",
-    fontFamily: "Georgia, 'Times New Roman', Times, serif",
+    fontFamily: DEFAULT_SIGNATURE_FONT,
     showPhoto: false,
     showLogo: true,
     showSocial: false,
@@ -45,8 +46,8 @@ function blankTemplate(): SignatureTemplate {
     logoUrl: DEFAULT_LOGO_PATH,
     logoAlt: COMPANY_NAME,
     logoWidth: 56,
-    companyNameLine1: "DOSSANI PARADISE",
-    companyNameLine2: "MANAGEMENT",
+    companyNameLine1: "Dossani Paradise",
+    companyNameLine2: "Management",
     companyNameLine2Color: "#C0392B",
     ctaLabel: "",
     ctaUrl: "",
@@ -65,6 +66,7 @@ function withDefaults(template: SignatureTemplate): SignatureTemplate {
     ...template,
     showThankYou: template.showThankYou ?? template.layout === "corporate",
     logoWidth: template.logoWidth || 56,
+    fontFamily: template.fontFamily || DEFAULT_SIGNATURE_FONT,
     companyNameLine1: template.companyNameLine1 || template.logoAlt || "",
     companyNameLine2: template.companyNameLine2 || "",
     companyNameLine2Color: template.companyNameLine2Color || template.accentColor,
@@ -240,6 +242,32 @@ export default function SignatureEditorPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="fontFamily">Signature font</label>
+            <select
+              id="fontFamily"
+              value={template.fontFamily}
+              disabled={!canManageSignatures}
+              onChange={(e) => patch({ fontFamily: e.target.value })}
+              style={{ fontFamily: template.fontFamily }}
+            >
+              {SIGNATURE_FONTS.map((font) => (
+                <option key={font.id} value={font.value} style={{ fontFamily: font.value }}>
+                  {font.label}
+                </option>
+              ))}
+              {!SIGNATURE_FONTS.some((f) => f.value === template.fontFamily) ? (
+                <option value={template.fontFamily}>Custom</option>
+              ) : null}
+            </select>
+            <p className="muted" style={{ marginTop: "0.35rem" }}>
+              Preview:{" "}
+              <span style={{ fontFamily: template.fontFamily }}>
+                Thank You, · Dossani Paradise · Store Manager
+              </span>
+            </p>
           </div>
 
           <div className="panel-card" style={{ boxShadow: "none", marginBottom: "1rem" }}>

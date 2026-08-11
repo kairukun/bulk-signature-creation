@@ -1,4 +1,5 @@
-import { DEFAULT_LOGO_PATH } from "./constants";
+﻿import { DEFAULT_LOGO_PATH } from "./constants";
+import { DEFAULT_SIGNATURE_FONT, unshout } from "./fonts";
 import type { Campaign, DirectoryUser, SignatureTemplate } from "./types";
 
 function escapeHtml(value: string): string {
@@ -7,6 +8,10 @@ function escapeHtml(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function text(value: string): string {
+  return escapeHtml(unshout(value));
 }
 
 function trackingUrl(origin: string, campaignId: string, targetUrl: string): string {
@@ -70,10 +75,10 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
   if (!template.showLogo) return "";
   const width = template.logoWidth || 56;
   const src = absoluteAssetUrl(origin, template.logoUrl || DEFAULT_LOGO_PATH);
-  const line1 = template.companyNameLine1 || template.logoAlt;
-  const line2 = template.companyNameLine2;
+  const line1 = unshout(template.companyNameLine1 || template.logoAlt);
+  const line2 = unshout(template.companyNameLine2 || "");
   const line2Color = template.companyNameLine2Color || template.accentColor;
-  const font = template.fontFamily;
+  const font = template.fontFamily || DEFAULT_SIGNATURE_FONT;
   const color = template.primaryColor;
 
   const image = src
@@ -82,12 +87,12 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
 
   const nameCell = `
     <td style="vertical-align:middle;padding-left:${image ? "10px" : "0"};">
-      <div style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};letter-spacing:0.03em;line-height:1.15;text-transform:uppercase;">
+      <div style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};line-height:1.2;">
         ${escapeHtml(line1)}
       </div>
       ${
         line2
-          ? `<div style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(line2Color)};letter-spacing:0.06em;line-height:1.2;text-transform:uppercase;margin-top:2px;">${escapeHtml(line2)}</div>`
+          ? `<div style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.2;margin-top:2px;">${escapeHtml(line2)}</div>`
           : ""
       }
     </td>`;
@@ -109,7 +114,7 @@ export function renderSignatureHtml(options: {
   const { user, template, campaign, origin = "" } = options;
   const color = template.primaryColor;
   const accent = template.accentColor;
-  const font = template.fontFamily;
+  const font = template.fontFamily || DEFAULT_SIGNATURE_FONT;
   const live = isCampaignLive(campaign);
 
   const ctaHref =
@@ -138,6 +143,10 @@ export function renderSignatureHtml(options: {
     (user.streetAddress ? user.location : user.location) ||
     "";
 
+  const displayName = unshout(user.displayName);
+  const jobTitle = unshout(user.jobTitle);
+  const storeName = user.storeName ? unshout(user.storeName) : "";
+
   const photoCell = template.showPhoto
     ? `<td style="padding-right:14px;vertical-align:top;">
         ${
@@ -162,54 +171,54 @@ export function renderSignatureHtml(options: {
   const cta =
     template.ctaLabel && template.ctaUrl
       ? `<tr><td style="padding-top:10px;">
-          <a href="${escapeHtml(ctaHref)}" style="display:inline-block;background:${escapeHtml(accent)};color:#fff;text-decoration:none;font:600 12px Arial, Helvetica, sans-serif;padding:8px 12px;border-radius:4px;">${escapeHtml(template.ctaLabel)}</a>
+          <a href="${escapeHtml(ctaHref)}" style="display:inline-block;background:${escapeHtml(accent)};color:#fff;text-decoration:none;font:600 12px ${escapeHtml(font)};padding:8px 12px;border-radius:4px;">${text(template.ctaLabel)}</a>
         </td></tr>`
       : "";
 
   const banner =
     live && campaign
       ? `<tr><td style="padding-top:12px;">
-          <a href="${escapeHtml(bannerHref)}" style="display:block;background:${escapeHtml(campaign.backgroundColor)};color:${escapeHtml(campaign.textColor)};text-decoration:none;font:600 12px Arial, Helvetica, sans-serif;padding:10px 12px;border-radius:4px;">
+          <a href="${escapeHtml(bannerHref)}" style="display:block;background:${escapeHtml(campaign.backgroundColor)};color:${escapeHtml(campaign.textColor)};text-decoration:none;font:600 12px ${escapeHtml(font)};padding:10px 12px;border-radius:4px;">
             ${escapeHtml(campaign.bannerText)}
           </a>
         </td></tr>`
       : "";
 
   const disclaimer = template.disclaimer
-    ? `<tr><td style="padding-top:12px;font:9px Arial, Helvetica, sans-serif;color:#333333;max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
+    ? `<tr><td style="padding-top:12px;font:9px ${escapeHtml(font)};color:#333333;max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
     : "";
 
   if (template.layout === "corporate") {
     const web = websiteLabel(template, user);
     const webHref = websiteHref(user.website || template.websiteDisplay || web);
+    const storeLine =
+      storeName && storeName.toLowerCase() !== displayName.toLowerCase()
+        ? `${storeName}${user.storeNumber ? ` (${user.storeNumber})` : ""}`
+        : user.storeNumber
+          ? user.storeNumber
+          : "";
+
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:${escapeHtml(color)};max-width:560px;">
       ${
         template.showThankYou !== false
           ? `<tr><td style="font:700 15px ${escapeHtml(font)};color:${escapeHtml(color)};padding-bottom:8px;">Thank You,</td></tr>`
           : ""
       }
-      <tr><td style="font:700 16px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(user.displayName)}</td></tr>
-      <tr><td style="font:italic 13px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;padding-top:2px;">${escapeHtml(user.jobTitle)}</td></tr>
-      ${(() => {
-        const storeLine =
-          user.storeName &&
-          user.storeName.toLowerCase() !== user.displayName.toLowerCase()
-            ? `${user.storeName}${user.storeNumber ? ` (${user.storeNumber})` : ""}`
-            : user.storeNumber
-              ? user.storeNumber
-              : "";
-        return storeLine
-          ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(storeLine)}</td></tr>`
-          : "";
-      })()}
+      <tr><td style="font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td></tr>
+      <tr><td style="font:italic 13px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(jobTitle)}</td></tr>
+      ${
+        storeLine
+          ? `<tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(storeLine)}</td></tr>`
+          : ""
+      }
       <tr><td>${logoHtml}</td></tr>
-      ${street ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(street)}</td></tr>` : ""}
-      ${cityStateZip ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(cityStateZip)}</td></tr>` : ""}
-      ${user.phone ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(user.phone)}</td></tr>` : ""}
-      <tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};padding-top:2px;">
+      ${street ? `<tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(street)}</td></tr>` : ""}
+      ${cityStateZip ? `<tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(cityStateZip)}</td></tr>` : ""}
+      ${user.phone ? `<tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.phone)}</td></tr>` : ""}
+      <tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">
         Email: <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(user.email)}</a>
       </td></tr>
-      <tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">
+      <tr><td style="font:12px ${escapeHtml(font)};color:${escapeHtml(color)};">
         Website: <a href="${escapeHtml(webHref)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(web)}</a>
       </td></tr>
       ${cta}${banner}${disclaimer}
@@ -219,9 +228,9 @@ export function renderSignatureHtml(options: {
   if (template.layout === "compact") {
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:#111827;">
       <tr>
-        <td style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</td>
+        <td style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td>
         <td style="padding:0 8px;color:#9ca3af;">|</td>
-        <td style="font:12px ${escapeHtml(font)};color:#374151;">${escapeHtml(user.jobTitle)}</td>
+        <td style="font:12px ${escapeHtml(font)};color:#374151;">${escapeHtml(jobTitle)}</td>
       </tr>
       <tr>
         <td colspan="3" style="padding-top:4px;font:12px ${escapeHtml(font)};">
@@ -236,10 +245,10 @@ export function renderSignatureHtml(options: {
   if (template.layout === "stacked") {
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:#111827;max-width:360px;">
       <tr><td>${logoHtml}</td></tr>
-      <tr><td style="padding-top:8px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</td></tr>
-      <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(user.jobTitle)} · ${escapeHtml(user.department)}</td></tr>
+      <tr><td style="padding-top:8px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td></tr>
+      <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(jobTitle)} · ${text(user.department)}</td></tr>
       <tr><td style="padding-top:6px;font:12px ${escapeHtml(font)};"><a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a></td></tr>
-      <tr><td style="font:12px ${escapeHtml(font)};color:#374151;">${escapeHtml(user.phone)}${user.location ? ` · ${escapeHtml(user.location)}` : ""}</td></tr>
+      <tr><td style="font:12px ${escapeHtml(font)};color:#374151;">${escapeHtml(user.phone)}${user.location ? ` · ${text(user.location)}` : ""}</td></tr>
       ${social}${cta}${banner}${disclaimer}
     </table>`;
   }
@@ -249,9 +258,9 @@ export function renderSignatureHtml(options: {
       <tr>
         ${photoCell}
         <td style="vertical-align:top;border-left:3px solid ${escapeHtml(accent)};padding-left:14px;">
-          <div style="font:700 17px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</div>
-          <div style="font:13px ${escapeHtml(font)};color:#4b5563;margin-top:2px;">${escapeHtml(user.jobTitle)}</div>
-          <div style="font:12px ${escapeHtml(font)};color:#6b7280;margin-top:2px;">${escapeHtml(user.company)} · ${escapeHtml(user.department)}</div>
+          <div style="font:700 17px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</div>
+          <div style="font:13px ${escapeHtml(font)};color:#4b5563;margin-top:2px;">${escapeHtml(jobTitle)}</div>
+          <div style="font:12px ${escapeHtml(font)};color:#6b7280;margin-top:2px;">${text(user.company)} · ${text(user.department)}</div>
           <div style="margin-top:8px;font:12px ${escapeHtml(font)};">
             <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a><br/>
             ${escapeHtml(user.phone)}${user.mobile ? `<br/>${escapeHtml(user.mobile)}` : ""}
@@ -267,21 +276,20 @@ export function renderSignatureHtml(options: {
     </table>`;
   }
 
-  // classic
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:#111827;">
     <tr>
       ${photoCell}
       <td style="vertical-align:top;">
         <table cellpadding="0" cellspacing="0" border="0">
           <tr><td>${logoHtml}</td></tr>
-          <tr><td style="padding-top:4px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</td></tr>
-          <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(user.jobTitle)}</td></tr>
-          <tr><td style="font:12px ${escapeHtml(font)};color:#6b7280;">${escapeHtml(user.company)} | ${escapeHtml(user.department)}</td></tr>
+          <tr><td style="padding-top:4px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td></tr>
+          <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(jobTitle)}</td></tr>
+          <tr><td style="font:12px ${escapeHtml(font)};color:#6b7280;">${text(user.company)} | ${text(user.department)}</td></tr>
           <tr><td style="padding-top:8px;font:12px ${escapeHtml(font)};">
             <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a>
             ${user.phone ? `<span style="color:#9ca3af;"> · </span>${escapeHtml(user.phone)}` : ""}
           </td></tr>
-          ${user.location ? `<tr><td style="font:12px ${escapeHtml(font)};color:#6b7280;">${escapeHtml(user.location)}</td></tr>` : ""}
+          ${user.location ? `<tr><td style="font:12px ${escapeHtml(font)};color:#6b7280;">${text(user.location)}</td></tr>` : ""}
           ${social}${cta}${banner}${disclaimer}
         </table>
       </td>
