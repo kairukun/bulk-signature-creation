@@ -6,9 +6,10 @@ import {
   resolveTemplateForUser,
 } from "@/lib/render-signature";
 import { useStore } from "@/lib/store";
-import type { AppSettings } from "@/lib/types";
+import type { AppSettings, DirectoryUser } from "@/lib/types";
 
 type DeployMode = AppSettings["deployMode"];
+type PublishAudience = "all" | "selected";
 
 const MODES: {
   id: DeployMode;
@@ -39,7 +40,12 @@ const LIMITATIONS = [
   "Sent Items may not show the appended signature the recipient receives.",
   "Add an exception for the disclaimer marker so replies do not stack duplicate signatures.",
   "Live publish needs Exchange.ManageAsApp (+ admin consent) and an Exchange RBAC role on the app’s service principal.",
+  "Selected-email publish scopes the transport rule to those senders only (From addresses).",
 ];
+
+function usersWithEmail(users: DirectoryUser[]) {
+  return users.filter((u) => Boolean(u.email?.trim()));
+}
 
 export default function DeployPage() {
   const {
@@ -58,6 +64,7 @@ export default function DeployPage() {
     [users],
   );
   const deployUsers = findMiUsers.length ? findMiUsers : users;
+  const emailUsers = useMemo(() => usersWithEmail(deployUsers), [deployUsers]);
 
   const [selectedUserId, setSelectedUserId] = useState(
     deployUsers[0]?.id ?? "",
@@ -66,6 +73,9 @@ export default function DeployPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [hasAzure, setHasAzure] = useState<boolean | null>(null);
+  const [audience, setAudience] = useState<PublishAudience>("all");
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [emailQuery, setEmailQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +92,53 @@ export default function DeployPage() {
       cancelled = true;
     };
   }, []);
+
+  const filteredEmailUsers = useMemo(() => {
+    const q = emailQuery.trim().toLowerCase();
+    if (!q) return emailUsers;
+    return emailUsers.filter((u) =>
+      [u.displayName, u.email, u.storeName, u.jobTitle, u.department]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [emailUsers, emailQuery]);
+
+  const activeUsers = useMemo(() => {
+    if (audience === "all") return deployUsers;
+    const selected = new Set(selectedEmails.map((e) => e.toLowerCase()));
+    return deployUsers.filter((u) =>
+      selected.has((u.email || "").trim().toLowerCase()),
+    );
+  }, [audience, deployUsers, selectedEmails]);
+
+  const audiencePayload = {
+    audience,
+    emails: audience === "selected" ? selectedEmails : [],
+    userCount:
+      audience === "selected" ? selectedEmails.length : deployUsers.length,
+  };
+
+  function toggleEmail(email: string) {
+    const normalized = email.trim().toLowerCase();
+    setSelectedEmails((prev) =>
+      prev.includes(normalized)
+        ? prev.filter((e) => e !== normalized)
+        : [...prev, normalized],
+    );
+  }
+
+  function selectAllVisible() {
+    const emails = filteredEmailUsers
+      .map((u) => (u.email || "").trim().toLowerCase())
+      .filter(Boolean);
+    setSelectedEmails((prev) => [...new Set([...prev, ...emails])]);
+  }
+
+  function clearSelected() {
+    setSelectedEmails([]);
+  }
 
   const selectedUser =
     deployUsers.find((u) => u.id === selectedUserId) ?? deployUsers[0];
@@ -108,6 +165,10 @@ export default function DeployPage() {
 
   async function runDeploy(mode: DeployMode = settings.deployMode) {
     if (!canDeploy) return;
+    if (audience === "selected" && selectedEmails.length === 0) {
+      setError("Select at least one email to publish, or choose All.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
@@ -119,7 +180,7 @@ export default function DeployPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          userCount: deployUsers.length,
+          ...audiencePayload,
           templateCount: templates.length,
           companyName: settings.companyName,
           template: corporate,
@@ -168,6 +229,10 @@ export default function DeployPage() {
 
   async function downloadHtmlPack() {
     if (!canDeploy) return;
+    if (audience === "selected" && selectedEmails.length === 0) {
+      setError("Select at least one email, or choose All.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
@@ -176,7 +241,7 @@ export default function DeployPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          users: deployUsers,
+          users: activeUsers,
           templates,
           campaigns,
           companyName: settings.companyName,
@@ -203,6 +268,10 @@ export default function DeployPage() {
 
   async function downloadPowerShellScript() {
     if (!canDeploy) return;
+    if (audience === "selected" && selectedEmails.length === 0) {
+      setError("Select at least one email, or choose All.");
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
@@ -213,20 +282,26 @@ export default function DeployPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientCount: deployUsers.length,
+          ...audiencePayload,
+          recipientCount: audiencePayload.userCount,
           companyName: settings.companyName,
           template: corporate,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Script generation failed");
+        setError(data.error || data.message || "Script generation failed");
         return;
       }
-      downloadText(data.filename || "DPM-Corporate-Signature.ps1", data.powershell, "text/plain");
+      downloadText(
+        data.filename || "DPM-Corporate-Signature.ps1",
+        data.powershell,
+        "text/plain",
+      );
       markDeployed();
       setMessage(
-        `Downloaded ${data.filename}. Review, then run in Exchange Online PowerShell as a DPM admin.`,
+        data.message ||
+          `Downloaded ${data.filename}. Review, then run in Exchange Online PowerShell as a DPM admin.`,
       );
     } finally {
       setBusy(false);
@@ -311,6 +386,128 @@ export default function DeployPage() {
         ))}
       </div>
 
+      <section className="panel-card" style={{ marginBottom: "1rem" }}>
+        <h3>Publish audience</h3>
+        <p className="muted" style={{ marginTop: "0.45rem" }}>
+          Choose whether the transport rule covers everyone, or only selected
+          sender mailboxes.
+        </p>
+        <div className="chip-row" style={{ marginTop: "0.85rem" }}>
+          <button
+            type="button"
+            className={`chip ${audience === "all" ? "active" : ""}`}
+            disabled={!canDeploy}
+            onClick={() => setAudience("all")}
+          >
+            All emails ({emailUsers.length})
+          </button>
+          <button
+            type="button"
+            className={`chip ${audience === "selected" ? "active" : ""}`}
+            disabled={!canDeploy}
+            onClick={() => setAudience("selected")}
+          >
+            Selected emails ({selectedEmails.length})
+          </button>
+        </div>
+
+        {audience === "selected" ? (
+          <>
+            <div
+              className="field"
+              style={{ marginTop: "0.9rem", marginBottom: 0 }}
+            >
+              <label htmlFor="publish-email-search">Search directory</label>
+              <input
+                id="publish-email-search"
+                value={emailQuery}
+                disabled={!canDeploy}
+                onChange={(e) => setEmailQuery(e.target.value)}
+                placeholder="Name, email, store, department…"
+              />
+            </div>
+            <div
+              style={{
+                marginTop: "0.65rem",
+                display: "flex",
+                gap: "0.5rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={!canDeploy || !filteredEmailUsers.length}
+                onClick={selectAllVisible}
+              >
+                Select visible
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={!canDeploy || !selectedEmails.length}
+                onClick={clearSelected}
+              >
+                Clear selection
+              </button>
+            </div>
+            <div
+              style={{
+                marginTop: "0.75rem",
+                maxHeight: "240px",
+                overflow: "auto",
+                border: "1px solid var(--line)",
+                borderRadius: "12px",
+                padding: "0.55rem 0.75rem",
+              }}
+            >
+              {filteredEmailUsers.map((user) => {
+                const email = (user.email || "").trim().toLowerCase();
+                const checked = selectedEmails.includes(email);
+                return (
+                  <label
+                    key={user.id}
+                    style={{
+                      display: "flex",
+                      gap: "0.55rem",
+                      alignItems: "flex-start",
+                      padding: "0.35rem 0",
+                      borderBottom: "1px solid var(--line)",
+                      cursor: canDeploy ? "pointer" : "default",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!canDeploy}
+                      onChange={() => toggleEmail(email)}
+                      style={{ marginTop: "0.2rem" }}
+                    />
+                    <span>
+                      <strong>{user.storeName || user.displayName}</strong>
+                      <span className="muted" style={{ display: "block" }}>
+                        {user.email}
+                        {user.department ? ` · ${user.department}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+              {!filteredEmailUsers.length ? (
+                <p className="muted" style={{ margin: "0.35rem 0" }}>
+                  No emails match this search. Sync FindMi or clear the filter.
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <p className="muted" style={{ marginTop: "0.75rem" }}>
+            Rule will apply to all in-organization senders (org-wide outbound
+            signature).
+          </p>
+        )}
+      </section>
+
       <div className="split">
         <section className="panel-card">
           <h3>How this works</h3>
@@ -350,10 +547,15 @@ export default function DeployPage() {
           </ul>
 
           <p className="muted" style={{ marginTop: "1rem" }}>
-            Recipients ready: <strong>{deployUsers.length}</strong>
+            Publishing to:{" "}
+            <strong>
+              {audience === "all"
+                ? `All (${emailUsers.length} emails)`
+                : `${selectedEmails.length} selected`}
+            </strong>
             {findMiUsers.length
-              ? " (FindMi directory)"
-              : " (no FindMi sync yet — sync FindMi for production)"}
+              ? " · FindMi directory"
+              : " · sync FindMi for production"}
           </p>
           <p className="muted" style={{ marginTop: "0.35rem" }}>
             Last deploy:{" "}

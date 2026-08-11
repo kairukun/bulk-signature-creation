@@ -1,8 +1,6 @@
 import { getAzureCredentials, type AzureCredentials } from "@/lib/deploy/azure";
-import {
-  TRANSPORT_RULE_MARKER,
-  TRANSPORT_RULE_NAME,
-} from "@/lib/deploy/transport-rule";
+import { buildTransportRuleParameters } from "@/lib/deploy/rule-scope";
+import { TRANSPORT_RULE_NAME } from "@/lib/deploy/transport-rule";
 
 const EXCHANGE_SCOPE = "https://outlook.office365.com/.default";
 const EXCHANGE_BASE = "https://outlook.office365.com";
@@ -130,16 +128,11 @@ async function invokeExchangeCommand<T = unknown>(options: {
   return { ok: true, value };
 }
 
-function disclaimerParameters(disclaimerHtml: string) {
-  return {
-    ApplyHtmlDisclaimerText: disclaimerHtml,
-    ApplyHtmlDisclaimerLocation: "Append",
-    ApplyHtmlDisclaimerFallbackAction: "Wrap",
-    ExceptIfBodyContainsWords: [TRANSPORT_RULE_MARKER],
-    FromScope: "InOrganization",
-    SentToScope: "NotInOrganization",
-    Mode: "Enforce",
-  };
+function ruleParameters(disclaimerHtml: string, fromEmails?: string[]) {
+  return buildTransportRuleParameters({
+    disclaimerHtml,
+    fromEmails,
+  });
 }
 
 /**
@@ -154,6 +147,8 @@ function disclaimerParameters(disclaimerHtml: string) {
 export async function publishTransportRule(options: {
   disclaimerHtml: string;
   recipientCount: number;
+  audienceLabel?: string;
+  fromEmails?: string[];
 }): Promise<PublishTransportRuleResult> {
   const credentials = getAzureCredentials();
   if (!credentials) {
@@ -166,8 +161,16 @@ export async function publishTransportRule(options: {
     };
   }
 
+  const fromEmails = options.fromEmails || [];
+  const label =
+    options.audienceLabel ||
+    (fromEmails.length
+      ? `${fromEmails.length} selected mailbox${fromEmails.length === 1 ? "" : "es"}`
+      : `${options.recipientCount} directory recipients`);
+
   try {
     const accessToken = await getExchangeAccessToken(credentials);
+    const params = ruleParameters(options.disclaimerHtml, fromEmails);
 
     const existing = await invokeExchangeCommand({
       credentials,
@@ -193,7 +196,7 @@ export async function publishTransportRule(options: {
         cmdletName: "Set-TransportRule",
         parameters: {
           Identity: TRANSPORT_RULE_NAME,
-          ...disclaimerParameters(options.disclaimerHtml),
+          ...params,
         },
       });
 
@@ -211,19 +214,22 @@ export async function publishTransportRule(options: {
         ok: true,
         action: "updated",
         ruleName: TRANSPORT_RULE_NAME,
-        message: `Updated Exchange Online transport rule "${TRANSPORT_RULE_NAME}" for ${options.recipientCount} directory recipients.`,
+        message: `Updated Exchange Online transport rule "${TRANSPORT_RULE_NAME}" for ${label}.`,
         details: updated.value,
       };
+    }
+
+    // New-TransportRule rejects null From / FromScope — omit null clears.
+    const createParams: Record<string, unknown> = { Name: TRANSPORT_RULE_NAME };
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== null) createParams[key] = value;
     }
 
     const created = await invokeExchangeCommand({
       credentials,
       accessToken,
       cmdletName: "New-TransportRule",
-      parameters: {
-        Name: TRANSPORT_RULE_NAME,
-        ...disclaimerParameters(options.disclaimerHtml),
-      },
+      parameters: createParams,
     });
 
     if (!created.ok) {
@@ -240,7 +246,7 @@ export async function publishTransportRule(options: {
       ok: true,
       action: "created",
       ruleName: TRANSPORT_RULE_NAME,
-      message: `Created Exchange Online transport rule "${TRANSPORT_RULE_NAME}" for ${options.recipientCount} directory recipients.`,
+      message: `Created Exchange Online transport rule "${TRANSPORT_RULE_NAME}" for ${label}.`,
       details: created.value,
     };
   } catch (err) {

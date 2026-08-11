@@ -6,6 +6,7 @@ import {
 } from "@/lib/deploy/azure";
 import { publishTransportRule } from "@/lib/deploy/exchange-publish";
 import { buildTransportRulePowerShell } from "@/lib/deploy/powershell";
+import { resolvePublishEmails } from "@/lib/deploy/rule-scope";
 import {
   TRANSPORT_RULE_NAME,
   buildTokenDisclaimerHtml,
@@ -29,17 +30,36 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const mode = body.mode ?? "demo";
-  const userCount = Number(body.userCount ?? 0);
   const templateCount = Number(body.templateCount ?? 0);
   const companyName = String(body.companyName || COMPANY_NAME);
   const template = (body.template || null) as SignatureTemplate | null;
   const hasAzure = hasAzureCredentials();
 
+  const audience = resolvePublishEmails({
+    audience: body.audience,
+    emails: body.emails,
+    fallbackCount: Number(body.userCount ?? 0),
+  });
+
+  if (audience.audience === "selected" && audience.emails.length === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        mode,
+        error: "no_emails_selected",
+        message: "Select at least one email to publish, or choose All.",
+        hasAzure,
+      },
+      { status: 400 },
+    );
+  }
+
   const disclaimerHtml = buildTokenDisclaimerHtml(template);
   const powershell = buildTransportRulePowerShell({
     disclaimerHtml,
-    recipientCount: userCount,
+    recipientCount: audience.recipientCount,
     companyName,
+    fromEmails: audience.audience === "selected" ? audience.emails : undefined,
   });
   const filename = `${TRANSPORT_RULE_NAME}.ps1`;
 
@@ -48,8 +68,10 @@ export async function POST(request: NextRequest) {
       ok: true,
       mode,
       ruleName: TRANSPORT_RULE_NAME,
-      message: `Sample run for ${companyName}: validated ${userCount} recipients across ${templateCount} template(s). No Exchange changes were made.`,
-      summary: transportRuleSummary(userCount),
+      audience: audience.audience,
+      emails: audience.emails,
+      message: `Sample run for ${companyName}: validated ${audience.label} across ${templateCount} template(s). No Exchange changes were made.`,
+      summary: transportRuleSummary(audience.recipientCount),
       hasAzure,
       publishMode: hasAzure ? "live" : "script-only",
     });
@@ -63,8 +85,10 @@ export async function POST(request: NextRequest) {
       filename,
       powershell,
       disclaimerHtml,
-      message: `Export ready for ${userCount} recipients. Download the PowerShell script and HTML pack, then run the script in Exchange Online PowerShell.`,
-      summary: transportRuleSummary(userCount),
+      audience: audience.audience,
+      emails: audience.emails,
+      message: `Export ready for ${audience.label}. Download the PowerShell script and HTML pack, then run the script in Exchange Online PowerShell.`,
+      summary: transportRuleSummary(audience.recipientCount),
       hasAzure,
       publishMode: hasAzure ? "live" : "script-only",
     });
@@ -81,6 +105,8 @@ export async function POST(request: NextRequest) {
           filename,
           powershell,
           disclaimerHtml,
+          audience: audience.audience,
+          emails: audience.emails,
           message:
             "Publish requires AZURE_AD_TENANT_ID, AZURE_AD_CLIENT_ID, and AZURE_AD_CLIENT_SECRET. Downloaded the PowerShell script instead — run it as a DPM Exchange admin.",
           hasAzure: false,
@@ -93,7 +119,10 @@ export async function POST(request: NextRequest) {
 
     const published = await publishTransportRule({
       disclaimerHtml,
-      recipientCount: userCount,
+      recipientCount: audience.recipientCount,
+      audienceLabel: audience.label,
+      fromEmails:
+        audience.audience === "selected" ? audience.emails : undefined,
     });
 
     if (!published.ok) {
@@ -106,6 +135,8 @@ export async function POST(request: NextRequest) {
           filename,
           powershell,
           disclaimerHtml,
+          audience: audience.audience,
+          emails: audience.emails,
           message: `${published.message} Falling back to script download — run it in Exchange Online PowerShell.`,
           details: published.details,
           hasAzure: true,
@@ -124,8 +155,10 @@ export async function POST(request: NextRequest) {
       filename,
       powershell,
       disclaimerHtml,
+      audience: audience.audience,
+      emails: audience.emails,
       message: published.message,
-      summary: transportRuleSummary(userCount),
+      summary: transportRuleSummary(audience.recipientCount),
       hasAzure: true,
       publishMode: "live",
       downloadScript: false,
