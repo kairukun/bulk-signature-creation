@@ -190,6 +190,18 @@ export function renderSignatureHtml(options: {
       }
       <tr><td style="font:700 16px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(user.displayName)}</td></tr>
       <tr><td style="font:italic 13px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;padding-top:2px;">${escapeHtml(user.jobTitle)}</td></tr>
+      ${(() => {
+        const storeLine =
+          user.storeName &&
+          user.storeName.toLowerCase() !== user.displayName.toLowerCase()
+            ? `${user.storeName}${user.storeNumber ? ` (${user.storeNumber})` : ""}`
+            : user.storeNumber
+              ? user.storeNumber
+              : "";
+        return storeLine
+          ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(storeLine)}</td></tr>`
+          : "";
+      })()}
       <tr><td>${logoHtml}</td></tr>
       ${street ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(street)}</td></tr>` : ""}
       ${cityStateZip ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(cityStateZip)}</td></tr>` : ""}

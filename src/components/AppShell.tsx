@@ -9,7 +9,7 @@ import type { Role } from "@/lib/types";
 const NAV = [
   { href: "/app", label: "Overview" },
   { href: "/app/signatures", label: "Signatures" },
-  { href: "/app/users", label: "People" },
+  { href: "/app/users", label: "FindMi stores" },
   { href: "/app/campaigns", label: "Banners" },
   { href: "/app/deploy", label: "Deploy to M365" },
   { href: "/app/settings", label: "M365 setup" },
@@ -68,9 +68,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </select>
           <p className="muted">
-            {settings.m365Connected
-              ? "Tenant connected"
-              : "Sample people (not live yet)"}
+            {settings.findMiConnected
+              ? `FindMi · ${settings.m365Connected ? "M365 ready" : "stores loaded"}`
+              : settings.m365Connected
+                ? "Tenant connected"
+                : "Sample data"}
           </p>
         </div>
       </aside>

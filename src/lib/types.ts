@@ -30,6 +30,25 @@ export interface DirectoryUser {
   twitter?: string;
   signatureId?: string;
   groups: string[];
+  /** FindMi restaurant id when this recipient is a store mailbox */
+  storeId?: string;
+  storeName?: string;
+  storeNumber?: string;
+  source?: "sample" | "findmi" | "m365";
+}
+
+export interface FindMiStoreRecord {
+  id: string;
+  storeName: string;
+  storeNumber: string;
+  address: string;
+  streetAddress: string;
+  cityStateZip: string;
+  email: string;
+  phone: string;
+  storeManager: string;
+  entity: string;
+  division: string;
 }
 
 export type SignatureLayout =
@@ -91,14 +110,17 @@ export interface AppSettings {
   companyLogo: string;
   role: Role;
   m365Connected: boolean;
+  findMiConnected: boolean;
   tenantId: string;
   deployMode: "demo" | "exchange-rule" | "outlook-roaming";
   lastSyncAt?: string;
+  lastFindMiSyncAt?: string;
   lastDeployAt?: string;
 }
 
 export interface AppState {
   users: DirectoryUser[];
+  stores: FindMiStoreRecord[];
   templates: SignatureTemplate[];
   campaigns: Campaign[];
   settings: AppSettings;

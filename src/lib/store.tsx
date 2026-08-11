@@ -10,16 +10,18 @@ import {
   type ReactNode,
 } from "react";
 import { createInitialState } from "./demo-data";
+import { findMiStoreToDirectoryUser } from "./findmi";
 import type {
   AppSettings,
   AppState,
   Campaign,
   DirectoryUser,
+  FindMiStoreRecord,
   Role,
   SignatureTemplate,
 } from "./types";
 
-const STORAGE_KEY = "dpm-email-signatures:v1";
+const STORAGE_KEY = "dpm-email-signatures:v2";
 
 interface StoreContextValue extends AppState {
   hydrated: boolean;
@@ -31,6 +33,8 @@ interface StoreContextValue extends AppState {
   deleteCampaign: (id: string) => void;
   updateUser: (user: DirectoryUser) => void;
   syncDirectory: () => void;
+  syncFindMiStores: () => Promise<{ count: number }>;
+  applyFindMiStores: (stores: FindMiStoreRecord[]) => void;
   markDeployed: () => void;
   recordCampaignView: (id: string) => void;
   recordCampaignClick: (id: string) => void;
@@ -47,7 +51,18 @@ function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
-    return { ...createInitialState(), ...JSON.parse(raw) } as AppState;
+    const parsed = JSON.parse(raw) as Partial<AppState>;
+    const base = createInitialState();
+    return {
+      ...base,
+      ...parsed,
+      stores: parsed.stores ?? [],
+      settings: {
+        ...base.settings,
+        ...parsed.settings,
+        findMiConnected: parsed.settings?.findMiConnected ?? false,
+      },
+    };
   } catch {
     return createInitialState();
   }
@@ -126,16 +141,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const syncDirectory = useCallback(() => {
-    setState((s) => ({
-      ...s,
-      settings: {
-        ...s.settings,
-        lastSyncAt: new Date().toISOString(),
-        m365Connected: s.settings.m365Connected || true,
-      },
-    }));
+  const applyFindMiStores = useCallback((stores: FindMiStoreRecord[]) => {
+    setState((s) => {
+      const defaultSig =
+        s.templates.find((t) => t.id === "t-dossani")?.id ||
+        s.templates[0]?.id ||
+        "t-dossani";
+
+      const previousByStoreId = new Map(
+        s.users
+          .filter((u) => u.storeId)
+          .map((u) => [u.storeId as string, u] as const),
+      );
+
+      const storeUsers = stores.map((store) => {
+        const mapped = findMiStoreToDirectoryUser(store, defaultSig);
+        const prev = previousByStoreId.get(store.id);
+        if (prev?.signatureId) {
+          return { ...mapped, signatureId: prev.signatureId };
+        }
+        return mapped;
+      });
+
+      const nonStoreUsers = s.users.filter((u) => u.source !== "findmi");
+
+      return {
+        ...s,
+        stores,
+        users: [...storeUsers, ...nonStoreUsers],
+        settings: {
+          ...s.settings,
+          findMiConnected: true,
+          lastFindMiSyncAt: new Date().toISOString(),
+          lastSyncAt: new Date().toISOString(),
+        },
+      };
+    });
   }, []);
+
+  const syncFindMiStores = useCallback(async () => {
+    const res = await fetch("/api/findmi/stores");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "FindMi sync failed");
+    }
+    applyFindMiStores(data.stores as FindMiStoreRecord[]);
+    return { count: data.count as number };
+  }, [applyFindMiStores]);
+
+  const syncDirectory = useCallback(() => {
+    void syncFindMiStores();
+  }, [syncFindMiStores]);
 
   const markDeployed = useCallback(() => {
     setState((s) => ({
@@ -170,7 +226,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const role = state.settings.role;
   const canManageSignatures = role === "admin" || role === "it";
-  const canManageCampaigns = role === "admin" || role === "marketing" || role === "it";
+  const canManageCampaigns =
+    role === "admin" || role === "marketing" || role === "it";
   const canDeploy = role === "admin" || role === "it";
 
   const value = useMemo<StoreContextValue>(
@@ -185,6 +242,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteCampaign,
       updateUser,
       syncDirectory,
+      syncFindMiStores,
+      applyFindMiStores,
       markDeployed,
       recordCampaignView,
       recordCampaignClick,
@@ -204,6 +263,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteCampaign,
       updateUser,
       syncDirectory,
+      syncFindMiStores,
+      applyFindMiStores,
       markDeployed,
       recordCampaignView,
       recordCampaignClick,

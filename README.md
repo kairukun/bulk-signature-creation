@@ -30,7 +30,22 @@ AZURE_AD_CLIENT_SECRET=
 NEXT_PUBLIC_APP_URL=
 ```
 
-Until those are set, the app uses sample people so you can validate layout and deploy flow safely.
+## FindMi store sync
+
+Store mailbox fields come from [DPM FindMi](https://dossaniparadise.github.io/DPM-FindMi/):
+
+- Store name
+- Address
+- Phone
+- Email
+
+In the app, open **FindMi stores** → **Sync from FindMi**. Data is read from the shared alignment API (`restaurants` records).
+
+Optional override:
+
+```env
+FINDMI_API_URL=https://alignment-api-khaki.vercel.app/api/dpm-alignment
+```
 
 ## App areas
 

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useStore } from "@/lib/store";
 
 export default function DashboardPage() {
-  const { users, templates, campaigns, settings, hydrated } = useStore();
+  const { users, templates, campaigns, settings, stores, hydrated } = useStore();
   const activeBanners = campaigns.filter((c) => c.active).length;
+  const storeCount = stores.length || users.filter((u) => u.source === "findmi").length;
   const assigned = users.filter((u) => u.signatureId).length;
 
   if (!hydrated) {
@@ -29,8 +30,10 @@ export default function DashboardPage() {
 
       <div className="stat-grid">
         <div className="stat-card">
-          <strong>{users.length}</strong>
-          <span className="muted">People in directory</span>
+          <strong>{storeCount || users.length}</strong>
+          <span className="muted">
+            {storeCount ? "FindMi stores" : "Directory people"}
+          </span>
         </div>
         <div className="stat-card">
           <strong>{templates.length}</strong>
@@ -61,17 +64,17 @@ export default function DashboardPage() {
           </Link>
         </article>
         <article className="panel-card">
-          <h3>2. People</h3>
+          <h3>2. FindMi stores</h3>
           <p style={{ marginTop: "0.5rem" }}>
-            Review names, titles, and addresses (FindMi / Entra). Sync from your
-            Microsoft 365 tenant when credentials are configured.
+            Sync store name, address, phone, and email from FindMi for each store
+            mailbox signature.
           </p>
           <Link
             href="/app/users"
             className="btn btn-secondary"
             style={{ marginTop: "1rem" }}
           >
-            Open people
+            Open FindMi stores
           </Link>
         </article>
         <article className="panel-card">

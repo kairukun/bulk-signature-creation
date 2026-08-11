@@ -171,7 +171,8 @@ export const DEMO_CAMPAIGNS: Campaign[] = [
 
 export function createInitialState(): AppState {
   return {
-    users: DEMO_USERS,
+    users: DEMO_USERS.map((u) => ({ ...u, source: "sample" as const })),
+    stores: [],
     templates: DEMO_TEMPLATES,
     campaigns: DEMO_CAMPAIGNS,
     settings: {
@@ -179,6 +180,7 @@ export function createInitialState(): AppState {
       companyLogo: DEFAULT_LOGO_PATH,
       role: "admin",
       m365Connected: false,
+      findMiConnected: false,
       tenantId: "",
       deployMode: "demo",
       lastSyncAt: new Date().toISOString(),

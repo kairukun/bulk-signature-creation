@@ -65,6 +65,40 @@ export default function SettingsPage() {
         </section>
 
         <section className="panel-card">
+          <h3>FindMi data source</h3>
+          <p className="muted" style={{ marginTop: "0.5rem" }}>
+            Store signatures pull name, address, phone, and email from{" "}
+            <a
+              href="https://dossaniparadise.github.io/DPM-FindMi/"
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "underline" }}
+            >
+              DPM FindMi
+            </a>
+            .
+          </p>
+          <p className="muted" style={{ marginTop: "0.5rem" }}>
+            API:{" "}
+            <code style={{ fontSize: "0.78rem" }}>
+              alignment-api-khaki.vercel.app/api/dpm-alignment
+            </code>
+          </p>
+          <p style={{ marginTop: "0.75rem" }}>
+            Status:{" "}
+            <span className={`badge ${settings.findMiConnected ? "ok" : ""}`}>
+              {settings.findMiConnected ? "Synced" : "Not synced"}
+            </span>
+          </p>
+          <p className="muted" style={{ marginTop: "0.35rem" }}>
+            Last sync:{" "}
+            {settings.lastFindMiSyncAt
+              ? new Date(settings.lastFindMiSyncAt).toLocaleString()
+              : "Never"}
+          </p>
+        </section>
+
+        <section className="panel-card">
           <h3>Host environment</h3>
           <p className="muted" style={{ marginTop: "0.5rem" }}>
             Set these on the server that runs this app (e.g. Vercel project for
