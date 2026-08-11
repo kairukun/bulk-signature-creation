@@ -3,6 +3,7 @@ export type Role = "admin" | "it" | "marketing" | "viewer";
 export type Department =
   | "All"
   | "Executive"
+  | "Operations"
   | "Sales"
   | "Marketing"
   | "Engineering"
@@ -12,10 +13,13 @@ export type Department =
 
 export type FindMiRole =
   | "store"
+  | "admin"
   | "vp"
   | "director"
   | "district_manager"
-  | "repair_technician";
+  | "repair_technician"
+  | "entity"
+  | "other";
 
 export interface DirectoryUser {
   id: string;

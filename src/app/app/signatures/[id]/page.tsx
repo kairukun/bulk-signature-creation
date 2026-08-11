@@ -12,6 +12,7 @@ import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types
 const DEPARTMENTS: Department[] = [
   "All",
   "Executive",
+  "Operations",
   "Sales",
   "Marketing",
   "Engineering",

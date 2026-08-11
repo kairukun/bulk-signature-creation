@@ -22,7 +22,7 @@ export async function GET() {
     }
 
     const data = await res.json();
-    const parsed = parseFindMiPayload(data);
+    const parsed = parseFindMiPayload(data as Record<string, unknown>);
     const syncedAt = new Date().toISOString();
 
     return NextResponse.json({

@@ -25,7 +25,7 @@ import type {
   SignatureTemplate,
 } from "./types";
 
-const STORAGE_KEY = "dpm-email-signatures:v3";
+const STORAGE_KEY = "dpm-email-signatures:v4";
 
 /** Fields editable in the FindMi UI that can become local overrides. */
 const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
@@ -263,15 +263,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const previousById = new Map(
           previousFindMi.map((u) => [u.id, u] as const),
         );
+        const previousByFindMiId = new Map(
+          previousFindMi
+            .filter((u) => u.findMiId)
+            .map((u) => [u.findMiId!, u] as const),
+        );
+        const previousByEmail = new Map(
+          previousFindMi
+            .filter((u) => u.email)
+            .map((u) => [u.email.toLowerCase(), u] as const),
+        );
 
         // Fresh FindMi payload for every store/person (full refresh).
-        const refreshed = payload.users.map((mapped) => ({
-          ...mapped,
-          signatureId:
-            previousById.get(mapped.id)?.signatureId ||
-            mapped.signatureId ||
-            defaultSig,
-        }));
+        const refreshed = payload.users.map((mapped) => {
+          const prior =
+            previousById.get(mapped.id) ||
+            (mapped.findMiId
+              ? previousByFindMiId.get(mapped.findMiId)
+              : undefined) ||
+            (mapped.email
+              ? previousByEmail.get(mapped.email.toLowerCase())
+              : undefined);
+          return {
+            ...mapped,
+            signatureId:
+              prior?.signatureId || mapped.signatureId || defaultSig,
+          };
+        });
 
         const diff = diffFindMiDirectory(previousFindMi, refreshed);
         const prunedOverrides = pruneDirectoryOverrides(

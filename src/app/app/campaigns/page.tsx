@@ -7,6 +7,7 @@ import type { Campaign, Department } from "@/lib/types";
 const DEPARTMENTS: Department[] = [
   "All",
   "Executive",
+  "Operations",
   "Sales",
   "Marketing",
   "Engineering",

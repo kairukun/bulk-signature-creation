@@ -10,10 +10,13 @@ type TabFilter = "all" | FindMiRole;
 const TABS: { id: TabFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "store", label: "Stores" },
-  { id: "vp", label: "VPs" },
+  { id: "admin", label: "Admins" },
+  { id: "vp", label: "Leadership" },
   { id: "director", label: "Directors" },
   { id: "district_manager", label: "District Managers" },
   { id: "repair_technician", label: "Repair Techs" },
+  { id: "entity", label: "Entities" },
+  { id: "other", label: "Other" },
 ];
 
 export default function UsersPage() {
@@ -45,10 +48,13 @@ export default function UsersPage() {
   const counts = useMemo(() => {
     const base: Record<FindMiRole, number> = {
       store: 0,
+      admin: 0,
       vp: 0,
       director: 0,
       district_manager: 0,
       repair_technician: 0,
+      entity: 0,
+      other: 0,
     };
     for (const user of findMiUsers) {
       if (user.findMiRole) base[user.findMiRole] += 1;
@@ -96,7 +102,7 @@ export default function UsersPage() {
       const result = await syncFindMiStores();
       const c = result.counts;
       setMessage(
-        `Refreshed FindMi — ${result.count} records (stores ${c.store || 0}, VPs ${c.vp || 0}, directors ${c.director || 0}, district managers ${c.district_manager || 0}, techs ${c.repair_technician || 0}). Updated ${result.updated}, added ${result.added}, removed ${result.removed}. Local edits kept: ${result.localEditsKept}.`,
+        `Refreshed FindMi — ${result.count} records (stores ${c.store || 0}, admins ${c.admin || 0}, leadership ${c.vp || 0}, directors ${c.director || 0}, district managers ${c.district_manager || 0}, techs ${c.repair_technician || 0}, entities ${c.entity || 0}, other ${c.other || 0}). Updated ${result.updated}, added ${result.added}, removed ${result.removed}. Local edits kept: ${result.localEditsKept}.`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "FindMi sync failed");
@@ -135,8 +141,9 @@ export default function UsersPage() {
         <div>
           <h1>FindMi directory</h1>
           <p>
-            Sync stores, district managers, directors, repair technicians, and
-            VPs from{" "}
+            Sync every FindMi store and person (admins, leadership, directors,
+            district managers, repair techs, entities, and any other people
+            maps) from{" "}
             <a
               href="https://dossaniparadise.github.io/DPM-FindMi/"
               target="_blank"
@@ -145,8 +152,8 @@ export default function UsersPage() {
             >
               DPM FindMi
             </a>
-            . Each sync pulls the latest FindMi data for every store and person.
-            Local edits stay applied only where they still differ.
+            . Each sync pulls live titles, departments, phones, and role
+            changes. Local edits stay applied only where they still differ.
           </p>
         </div>
         <button

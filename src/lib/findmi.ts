@@ -26,7 +26,10 @@ export interface FindMiPerson {
   name: string;
   email: string;
   phone: string;
+  jobTitle: string;
+  department: string;
   role: FindMiRole;
+  sourceBucket: string;
 }
 
 type RawRestaurant = {
@@ -46,24 +49,55 @@ type RawPerson = {
   name?: string;
   email?: string;
   phone?: string;
+  replyNumber?: string;
+  jobTitle?: string;
+  title?: string;
+  position?: string;
+  role?: string;
+  department?: string;
+  deptHead?: boolean;
+  tier?: string;
+  [key: string]: unknown;
 };
+
+/** Non-people collections in the alignment payload. */
+const NON_PEOPLE_BUCKETS = new Set([
+  "restaurants",
+  "awtTickets",
+  "filterChanges",
+  "gasCoverChanges",
+  "maintenanceTickets",
+  "maintenanceVendors",
+  "closedTicketCount",
+]);
+
+/** Known admin nested keys that are not people. */
+const ADMIN_SKIP_KEYS = new Set(["appMeta", "techLocations", "techMeta"]);
 
 export const FINDMI_ROLE_LABELS: Record<FindMiRole, string> = {
   store: "Store",
-  vp: "VP of Operations",
+  admin: "Admin",
+  vp: "VP / Leadership",
   director: "Director of Operations",
   district_manager: "District Manager",
   repair_technician: "Repair Technician",
+  entity: "Entity",
+  other: "Other",
 };
 
-const ROLE_META: Record<
+const ROLE_FALLBACK: Record<
   Exclude<FindMiRole, "store">,
   { jobTitle: string; department: Department; group: string }
 > = {
+  admin: {
+    jobTitle: "Administrator",
+    department: "Support",
+    group: "FindMi Admin",
+  },
   vp: {
     jobTitle: "VP of Operations",
     department: "Executive",
-    group: "FindMi VP",
+    group: "FindMi Leadership",
   },
   director: {
     jobTitle: "Director of Operations",
@@ -72,7 +106,7 @@ const ROLE_META: Record<
   },
   district_manager: {
     jobTitle: "District Manager",
-    department: "Sales",
+    department: "Operations",
     group: "FindMi District Manager",
   },
   repair_technician: {
@@ -80,6 +114,25 @@ const ROLE_META: Record<
     department: "Support",
     group: "FindMi Repair Tech",
   },
+  entity: {
+    jobTitle: "Entity",
+    department: "Finance",
+    group: "FindMi Entity",
+  },
+  other: {
+    jobTitle: "Team member",
+    department: "Operations",
+    group: "FindMi Other",
+  },
+};
+
+const BUCKET_TO_ROLE: Record<string, FindMiRole> = {
+  admins: "admin",
+  vps: "vp",
+  directors: "director",
+  areaCoaches: "district_manager",
+  repairTechnicians: "repair_technician",
+  entities: "entity",
 };
 
 /** Split "1001 East Highway 190, Copperas Cove, TX 76522" into street + city/state/zip. */
@@ -100,6 +153,22 @@ export function parseFindMiAddress(address: string): {
     return { streetAddress: parts[0], cityStateZip: parts[1] };
   }
   return { streetAddress: cleaned, cityStateZip: "" };
+}
+
+export function mapFindMiDepartment(raw?: string): Department {
+  const d = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (!d) return "Operations";
+  if (d.includes("exec")) return "Executive";
+  if (d.includes("operation")) return "Operations";
+  if (d.includes("sales")) return "Sales";
+  if (d.includes("market")) return "Marketing";
+  if (d.includes("finance") || d.includes("account")) return "Finance";
+  if (d.includes("hr") || d.includes("human")) return "HR";
+  if (d.includes("support") || d.includes("it ") || d === "it") return "Support";
+  if (d.includes("engineer")) return "Engineering";
+  return "Operations";
 }
 
 export function normalizeFindMiStore(
@@ -128,7 +197,7 @@ export function normalizeFindMiRestaurants(
 ): FindMiStore[] {
   if (!restaurants) return [];
   return Object.entries(restaurants)
-    .map(([id, raw]) => normalizeFindMiStore(raw.id || id, raw))
+    .map(([id, raw]) => normalizeFindMiStore(String(raw.id || id), raw))
     .filter((s) => s.storeName || s.email || s.storeNumber)
     .sort((a, b) =>
       (a.storeName || a.storeNumber).localeCompare(
@@ -139,63 +208,164 @@ export function normalizeFindMiRestaurants(
     );
 }
 
-function normalizePeople(
-  records: Record<string, RawPerson> | null | undefined,
-  role: Exclude<FindMiRole, "store">,
+function isPersonRecord(raw: unknown): raw is RawPerson {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const record = raw as RawPerson;
+  const name = String(record.name || "").trim();
+  const email = String(record.email || "").trim();
+  return Boolean(name || email);
+}
+
+function personJobTitle(raw: RawPerson, role: FindMiRole): string {
+  const fromApi = String(
+    raw.jobTitle || raw.title || raw.position || raw.role || "",
+  ).trim();
+  if (fromApi) return fromApi;
+  if (raw.tier) {
+    const tier = String(raw.tier).trim();
+    if (tier) return `Admin (${tier})`;
+  }
+  return ROLE_FALLBACK[role === "store" ? "other" : role].jobTitle;
+}
+
+function normalizePersonEntry(
+  key: string,
+  raw: RawPerson,
+  role: FindMiRole,
+  sourceBucket: string,
+): FindMiPerson | null {
+  if (!isPersonRecord(raw)) return null;
+  const id = String(raw.id || key).trim();
+  if (!id || ADMIN_SKIP_KEYS.has(key)) return null;
+
+  const name = String(raw.name || "").trim();
+  const email = String(raw.email || "").trim();
+  if (!name && !email) return null;
+
+  return {
+    id,
+    name,
+    email,
+    phone: String(raw.phone || raw.replyNumber || "").trim(),
+    jobTitle: personJobTitle(raw, role),
+    department: String(raw.department || "").trim(),
+    role,
+    sourceBucket,
+  };
+}
+
+function normalizePeopleBucket(
+  records: Record<string, unknown> | null | undefined,
+  role: FindMiRole,
+  sourceBucket: string,
 ): FindMiPerson[] {
   if (!records) return [];
   return Object.entries(records)
-    .map(([id, raw]) => ({
-      id: String(raw.id || id),
-      name: String(raw.name || "").trim(),
-      email: String(raw.email || "").trim(),
-      phone: String(raw.phone || "").trim(),
-      role,
-    }))
-    .filter((p) => p.name || p.email)
+    .map(([key, raw]) =>
+      normalizePersonEntry(key, raw as RawPerson, role, sourceBucket),
+    )
+    .filter((p): p is FindMiPerson => Boolean(p))
     .sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
     );
 }
 
-export function parseFindMiPayload(data: {
-  restaurants?: Record<string, RawRestaurant>;
-  vps?: Record<string, RawPerson>;
-  directors?: Record<string, RawPerson>;
-  areaCoaches?: Record<string, RawPerson>;
-  repairTechnicians?: Record<string, RawPerson>;
-}): {
+function looksLikePeopleMap(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (!entries.length) return false;
+  let personLike = 0;
+  for (const [key, raw] of entries) {
+    if (ADMIN_SKIP_KEYS.has(key)) continue;
+    if (isPersonRecord(raw)) personLike += 1;
+  }
+  return personLike > 0;
+}
+
+/**
+ * Collect every person-like record from the FindMi alignment payload.
+ * Known buckets first, then any other top-level maps that look like people.
+ */
+export function collectFindMiPeople(
+  data: Record<string, unknown>,
+): FindMiPerson[] {
+  const byId = new Map<string, FindMiPerson>();
+
+  const upsert = (person: FindMiPerson) => {
+    // Prefer richer records (ones with jobTitle/department) when duplicated.
+    const existing = byId.get(person.id);
+    if (!existing) {
+      byId.set(person.id, person);
+      return;
+    }
+    const existingScore =
+      (existing.jobTitle ? 1 : 0) + (existing.department ? 1 : 0);
+    const nextScore =
+      (person.jobTitle ? 1 : 0) + (person.department ? 1 : 0);
+    if (nextScore >= existingScore) byId.set(person.id, person);
+  };
+
+  for (const [bucket, role] of Object.entries(BUCKET_TO_ROLE)) {
+    const people = normalizePeopleBucket(
+      data[bucket] as Record<string, unknown> | undefined,
+      role,
+      bucket,
+    );
+    for (const person of people) upsert(person);
+  }
+
+  for (const [bucket, value] of Object.entries(data)) {
+    if (NON_PEOPLE_BUCKETS.has(bucket)) continue;
+    if (bucket in BUCKET_TO_ROLE) continue;
+    if (!looksLikePeopleMap(value)) continue;
+    const people = normalizePeopleBucket(
+      value as Record<string, unknown>,
+      "other",
+      bucket,
+    );
+    for (const person of people) upsert(person);
+  }
+
+  return [...byId.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+}
+
+export function emptyFindMiCounts(): Record<FindMiRole, number> {
+  return {
+    store: 0,
+    admin: 0,
+    vp: 0,
+    director: 0,
+    district_manager: 0,
+    repair_technician: 0,
+    entity: 0,
+    other: 0,
+  };
+}
+
+export function parseFindMiPayload(data: Record<string, unknown>): {
   stores: FindMiStore[];
   people: FindMiPerson[];
   users: DirectoryUser[];
   counts: Record<FindMiRole, number>;
 } {
-  const stores = normalizeFindMiRestaurants(data.restaurants);
-  const people = [
-    ...normalizePeople(data.vps, "vp"),
-    ...normalizePeople(data.directors, "director"),
-    ...normalizePeople(data.areaCoaches, "district_manager"),
-    ...normalizePeople(data.repairTechnicians, "repair_technician"),
-  ];
+  const stores = normalizeFindMiRestaurants(
+    data.restaurants as Record<string, RawRestaurant> | undefined,
+  );
+  const people = collectFindMiPeople(data);
 
   const storeUsers = stores.map((s) => findMiStoreToDirectoryUser(s));
   const peopleUsers = people.map((p) => findMiPersonToDirectoryUser(p));
   const users = [...peopleUsers, ...storeUsers];
 
-  return {
-    stores,
-    people,
-    users,
-    counts: {
-      store: stores.length,
-      vp: people.filter((p) => p.role === "vp").length,
-      director: people.filter((p) => p.role === "director").length,
-      district_manager: people.filter((p) => p.role === "district_manager")
-        .length,
-      repair_technician: people.filter((p) => p.role === "repair_technician")
-        .length,
-    },
-  };
+  const counts = emptyFindMiCounts();
+  counts.store = stores.length;
+  for (const person of people) {
+    counts[person.role] += 1;
+  }
+
+  return { stores, people, users, counts };
 }
 
 /** Map a FindMi store into a signature recipient (store mailbox). */
@@ -216,7 +386,7 @@ export function findMiStoreToDirectoryUser(
     displayName,
     email: store.email,
     jobTitle,
-    department: "Sales",
+    department: "Operations",
     phone: store.phone,
     company: store.entity || COMPANY_NAME,
     website: COMPANY_WEBSITE,
@@ -242,13 +412,20 @@ export function findMiPersonToDirectoryUser(
   person: FindMiPerson,
   signatureId = "t-dossani",
 ): DirectoryUser {
-  const meta = ROLE_META[person.role as Exclude<FindMiRole, "store">];
+  const fallback =
+    ROLE_FALLBACK[person.role === "store" ? "other" : person.role];
+  const jobTitle = person.jobTitle || fallback.jobTitle;
+  const department = person.department
+    ? mapFindMiDepartment(person.department)
+    : fallback.department;
+
   return {
-    id: `${person.role}:${person.id}`,
+    // Stable across role-bucket moves so title/role updates refresh in place.
+    id: `findmi:${person.id}`,
     displayName: person.name || person.email || "Team member",
     email: person.email,
-    jobTitle: meta.jobTitle,
-    department: meta.department,
+    jobTitle,
+    department,
     phone: person.phone,
     company: COMPANY_NAME,
     website: COMPANY_WEBSITE,
@@ -256,7 +433,7 @@ export function findMiPersonToDirectoryUser(
     cityStateZip: "",
     location: "",
     signatureId,
-    groups: [meta.group],
+    groups: [fallback.group, `FindMi:${person.sourceBucket}`],
     findMiRole: person.role,
     findMiId: person.id,
     source: "findmi",
@@ -280,7 +457,6 @@ export function applyDirectoryOverrides(
       findMiRole: user.findMiRole,
       findMiId: user.findMiId,
       storeId: user.storeId,
-      // Prefer existing app assignment on the refreshed user object.
       signatureId: user.signatureId || patch.signatureId,
       editedLocally: hasFindMiEdits,
     };
@@ -298,6 +474,7 @@ const OVERRIDE_COMPARE_FIELDS: (keyof DirectoryUser)[] = [
   "storeName",
   "storeNumber",
   "company",
+  "department",
 ];
 
 /**
@@ -309,11 +486,21 @@ export function pruneDirectoryOverrides(
   overrides: Record<string, Partial<DirectoryUser>>,
 ): Record<string, Partial<DirectoryUser>> {
   const byId = new Map(users.map((u) => [u.id, u] as const));
+  const byFindMiId = new Map(
+    users
+      .filter((u) => u.findMiId)
+      .map((u) => [u.findMiId!, u] as const),
+  );
   const next: Record<string, Partial<DirectoryUser>> = {};
 
   for (const [userId, patch] of Object.entries(overrides)) {
-    const fresh = byId.get(userId);
-    if (!fresh) continue; // person/store left FindMi — drop overrides
+    const fresh =
+      byId.get(userId) ||
+      (userId.includes(":")
+        ? byFindMiId.get(userId.slice(userId.indexOf(":") + 1))
+        : undefined) ||
+      byFindMiId.get(userId);
+    if (!fresh) continue;
 
     const kept: Partial<DirectoryUser> = {};
     for (const key of OVERRIDE_COMPARE_FIELDS) {
@@ -325,7 +512,7 @@ export function pruneDirectoryOverrides(
     }
 
     if (Object.keys(kept).length) {
-      next[userId] = kept;
+      next[fresh.id] = kept;
     }
   }
 
@@ -336,30 +523,47 @@ export function diffFindMiDirectory(
   previous: DirectoryUser[],
   next: DirectoryUser[],
 ): { added: number; removed: number; updated: number; unchanged: number } {
-  const prevMap = new Map(
-    previous.filter((u) => u.source === "findmi").map((u) => [u.id, u]),
-  );
-  const nextIds = new Set(next.map((u) => u.id));
+  const prevByKey = new Map<string, DirectoryUser>();
+  for (const user of previous.filter((u) => u.source === "findmi")) {
+    prevByKey.set(user.id, user);
+    if (user.findMiId) prevByKey.set(`id:${user.findMiId}`, user);
+    if (user.email) prevByKey.set(`email:${user.email.toLowerCase()}`, user);
+  }
 
+  const nextKeys = new Set<string>();
   let added = 0;
   let updated = 0;
   let unchanged = 0;
 
   for (const user of next) {
-    const before = prevMap.get(user.id);
+    nextKeys.add(user.id);
+    if (user.findMiId) nextKeys.add(`id:${user.findMiId}`);
+
+    const before =
+      prevByKey.get(user.id) ||
+      (user.findMiId ? prevByKey.get(`id:${user.findMiId}`) : undefined) ||
+      (user.email
+        ? prevByKey.get(`email:${user.email.toLowerCase()}`)
+        : undefined);
+
     if (!before) {
       added += 1;
       continue;
     }
-    const changed = OVERRIDE_COMPARE_FIELDS.some(
-      (key) => before[key] !== user[key],
-    );
+
+    const changed =
+      OVERRIDE_COMPARE_FIELDS.some((key) => before[key] !== user[key]) ||
+      before.findMiRole !== user.findMiRole;
     if (changed) updated += 1;
     else unchanged += 1;
   }
 
+  const prevIds = new Set(
+    previous.filter((u) => u.source === "findmi").map((u) => u.findMiId || u.id),
+  );
+  const nextIds = new Set(next.map((u) => u.findMiId || u.id));
   let removed = 0;
-  for (const id of prevMap.keys()) {
+  for (const id of prevIds) {
     if (!nextIds.has(id)) removed += 1;
   }
 
