@@ -17,16 +17,29 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) (redirects to `/app`).
 
+## Deploy to Microsoft 365 (A1)
+
+Signatures are applied with an **Exchange Online transport rule** (append on outbound send). Microsoft Graph cannot manage Outlook roaming signatures org-wide.
+
+**Day-to-day:** Sync FindMi → review the corporate template → **Deploy** → download the PowerShell script → run it in Exchange Online PowerShell as a DPM admin → send an external test message.
+
+**Optional:** With `AZURE_AD_*` configured (Exchange app permission + RBAC), **Publish rule** can create/update the rule remotely; otherwise the app stays script-download only.
+
+Full steps, permissions, verification, rollback, SPF/connector notes, and roaming caveats:
+
+→ **[docs/DPM-M365-SIGNATURE-RUNBOOK.md](docs/DPM-M365-SIGNATURE-RUNBOOK.md)**
+
 ## Connect the DPM tenant
 
 1. Register one Entra ID app in the DPM tenant
-2. Grant admin consent for directory read + mailbox/signature (or Exchange transport rules)
+2. For **live publish**: grant `Exchange.ManageAsApp` / `Exchange.ManageAsAppV2`, admin consent, and an Exchange RBAC role on the service principal (see runbook). Script-only deploy does not require this.
 3. Set:
 
 ```env
 AZURE_AD_TENANT_ID=
 AZURE_AD_CLIENT_ID=
 AZURE_AD_CLIENT_SECRET=
+AZURE_AD_ORG_DOMAIN=
 NEXT_PUBLIC_APP_URL=
 ```
 

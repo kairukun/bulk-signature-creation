@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   renderSignatureHtml,
   resolveTemplateForUser,
@@ -27,8 +27,8 @@ const MODES: {
   },
   {
     id: "publish-rule",
-    title: "Publish rule (when credentials set)",
-    body: "Uses Entra app credentials if configured. Otherwise download the script and run it manually.",
+    title: "Publish rule",
+    body: "When AZURE_AD_* is set, creates/updates the Exchange transport rule remotely. Otherwise downloads the script only.",
   },
 ];
 
@@ -38,6 +38,7 @@ const LIMITATIONS = [
   "A single transport rule uses one disclaimer body (Entra tokens for name/title/phone). Fully unique FindMi HTML per mailbox is in the HTML pack for audit/manual use.",
   "Sent Items may not show the appended signature the recipient receives.",
   "Add an exception for the disclaimer marker so replies do not stack duplicate signatures.",
+  "Live publish needs Exchange.ManageAsApp (+ admin consent) and an Exchange RBAC role on the app’s service principal.",
 ];
 
 export default function DeployPage() {
@@ -64,6 +65,23 @@ export default function DeployPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hasAzure, setHasAzure] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/deploy");
+        const data = await res.json();
+        if (!cancelled) setHasAzure(Boolean(data.hasAzure));
+      } catch {
+        if (!cancelled) setHasAzure(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedUser =
     deployUsers.find((u) => u.id === selectedUserId) ?? deployUsers[0];
@@ -94,6 +112,8 @@ export default function DeployPage() {
     setError("");
     setMessage("");
     try {
+      const corporate =
+        templates.find((t) => t.id === "t-dossani") || templates[0] || null;
       const res = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,15 +121,36 @@ export default function DeployPage() {
           mode,
           userCount: deployUsers.length,
           templateCount: templates.length,
+          companyName: settings.companyName,
+          template: corporate,
         }),
       });
       const data = await res.json();
+      if (typeof data.hasAzure === "boolean") setHasAzure(data.hasAzure);
+
       if (!res.ok) {
         setError(data.message || "Deploy failed");
+        if (data.downloadScript && data.powershell) {
+          downloadText(
+            data.filename || "DPM-Corporate-Signature.ps1",
+            data.powershell,
+            "text/plain",
+          );
+        }
         return;
       }
       markDeployed();
       setMessage(data.message);
+      if (
+        (mode === "export-script" || data.downloadScript) &&
+        data.powershell
+      ) {
+        downloadText(
+          data.filename || "DPM-Corporate-Signature.ps1",
+          data.powershell,
+          "text/plain",
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -125,116 +166,71 @@ export default function DeployPage() {
     URL.revokeObjectURL(url);
   }
 
-  function downloadHtmlPack() {
-    const pack = deployUsers.map((user) => {
-      const tpl = resolveTemplateForUser(user, templates);
-      const camp = tpl
-        ? campaigns.find((c) => c.id === tpl.campaignId)
-        : undefined;
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "";
-      return {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        findMiRole: user.findMiRole,
-        storeName: user.storeName,
-        html: tpl
-          ? renderSignatureHtml({
-              user,
-              template: tpl,
-              campaign: camp,
-              origin,
-            })
-          : "",
-      };
-    });
-
-    downloadText(
-      "dpm-signature-html-pack.json",
-      JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          company: settings.companyName,
-          count: pack.length,
-          note: "FindMi-accurate per-person HTML for audit or manual use. The Exchange transport rule uses token-based corporate HTML.",
-          recipients: pack,
-        },
-        null,
-        2,
-      ),
-      "application/json",
-    );
-    setMessage(
-      `Downloaded HTML pack for ${pack.length} recipients. Full PowerShell script generation ships in the next A1 step.`,
-    );
-    markDeployed();
+  async function downloadHtmlPack() {
+    if (!canDeploy) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch("/api/deploy/pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          users: deployUsers,
+          templates,
+          campaigns,
+          companyName: settings.companyName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "HTML pack failed");
+        return;
+      }
+      downloadText(
+        "dpm-signature-html-pack.json",
+        JSON.stringify(data.pack, null, 2),
+        "application/json",
+      );
+      markDeployed();
+      setMessage(
+        `Downloaded HTML pack for ${data.pack.count} recipients (FindMi-accurate per person).`,
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function downloadScriptStub() {
-    const script = `# DPM Corporate Signature — Exchange Online transport rule helper
-# Generated by DPM Email Signatures (A1)
-# Company: ${settings.companyName}
-# Recipients prepared: ${deployUsers.length}
-#
-# HOW TO RUN
-# 1. Open PowerShell as a DPM admin with Exchange Online rights
-# 2. Install-Module ExchangeOnlineManagement -Scope CurrentUser   (once)
-# 3. Connect-ExchangeOnline
-# 4. Paste/run this script
-#
-# LIMITATIONS
-# - Signature is appended after send (not visible while composing)
-# - One rule body with Entra disclaimer tokens; per-person FindMi HTML is in the JSON pack
-# - Microsoft Graph cannot set Outlook roaming signatures
-
-$RuleName = "DPM-Corporate-Signature"
-$Marker = "DPM-SIGNATURE-RULE-MARKER"
-
-# Placeholder: full token-based HTML is generated in the next A1 export step.
-$DisclaimerHtml = @"
-<div style="font-family: Georgia, 'Times New Roman', serif; color: #1F4E79;">
-  <div><strong>%%DisplayName%%</strong></div>
-  <div><em>%%Title%%</em></div>
-  <div>%%PhoneNumber%%</div>
-  <div>Email: <a href="mailto:%%Email%%">%%Email%%</a></div>
-  <div style="font-size: 9px; color: #333; margin-top: 12px;">
-    The information contained in this electronic message and any attachments may be confidential.
-    <span style="display:none">$Marker</span>
-  </div>
-</div>
-"@
-
-$existing = Get-TransportRule -Identity $RuleName -ErrorAction SilentlyContinue
-if ($existing) {
-  Set-TransportRule -Identity $RuleName \`
-    -ApplyHtmlDisclaimerText $DisclaimerHtml \`
-    -ApplyHtmlDisclaimerLocation Append \`
-    -ApplyHtmlDisclaimerFallbackAction Wrap
-  Write-Host "Updated rule: $RuleName"
-} else {
-  New-TransportRule -Name $RuleName \`
-    -FromScope InOrganization \`
-    -SentToScope NotInOrganization \`
-    -ApplyHtmlDisclaimerText $DisclaimerHtml \`
-    -ApplyHtmlDisclaimerLocation Append \`
-    -ApplyHtmlDisclaimerFallbackAction Wrap \`
-    -ExceptIfBodyContainsWords $Marker \`
-    -Mode Enforce
-  Write-Host "Created rule: $RuleName"
-}
-
-Write-Host "Done. Send a test message to an external address to verify."
-`;
-    downloadText(
-      "DPM-Corporate-Signature.ps1",
-      script,
-      "text/plain",
-    );
-    setMessage(
-      "Downloaded starter PowerShell script. Review before running in Exchange Online PowerShell.",
-    );
-    markDeployed();
+  async function downloadPowerShellScript() {
+    if (!canDeploy) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const corporate =
+        templates.find((t) => t.id === "t-dossani") || templates[0] || null;
+      const res = await fetch("/api/deploy/script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientCount: deployUsers.length,
+          companyName: settings.companyName,
+          template: corporate,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Script generation failed");
+        return;
+      }
+      downloadText(data.filename || "DPM-Corporate-Signature.ps1", data.powershell, "text/plain");
+      markDeployed();
+      setMessage(
+        `Downloaded ${data.filename}. Review, then run in Exchange Online PowerShell as a DPM admin.`,
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -246,7 +242,15 @@ Write-Host "Done. Send a test message to an external address to verify."
             A1 transport-rule helper for {settings.companyName}. Build an
             Exchange Online mail-flow rule that appends the corporate signature
             on outbound mail — the native approach most companies use before a
-            full stamp service.
+            full stamp service.{" "}
+            <a
+              href="https://github.com/kairukun/bulk-signature-creation/blob/main/docs/DPM-M365-SIGNATURE-RUNBOOK.md"
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "underline" }}
+            >
+              IT runbook
+            </a>
           </p>
         </div>
         <button
@@ -261,6 +265,16 @@ Write-Host "Done. Send a test message to an external address to verify."
 
       {!canDeploy ? (
         <p className="badge">Only Admin / IT roles can deploy.</p>
+      ) : null}
+      {hasAzure === true ? (
+        <p className="badge ok" style={{ marginBottom: "1rem" }}>
+          AZURE_AD_* configured — publish can update Exchange Online live
+        </p>
+      ) : hasAzure === false ? (
+        <p className="badge" style={{ marginBottom: "1rem" }}>
+          Script download only — set AZURE_AD_TENANT_ID / CLIENT_ID / CLIENT_SECRET
+          for automated publish
+        </p>
       ) : null}
       {message ? <p className="toast">{message}</p> : null}
       {error ? (
@@ -309,10 +323,14 @@ Write-Host "Done. Send a test message to an external address to verify."
             }}
           >
             <li>Sync FindMi directory and confirm signature templates</li>
-            <li>Download the PowerShell transport-rule script</li>
+            <li>
+              Prefer <strong>Publish rule</strong> when AZURE_AD_* is configured;
+              otherwise download the PowerShell script
+            </li>
             <li>Download the per-person HTML pack (FindMi-accurate audit copy)</li>
             <li>
-              Run the script in Exchange Online PowerShell as a DPM admin
+              If publishing failed or credentials are missing, run the script in
+              Exchange Online PowerShell as a DPM admin
             </li>
             <li>Send a test email outside the tenant to verify</li>
           </ol>
@@ -355,16 +373,16 @@ Write-Host "Done. Send a test message to an external address to verify."
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!canDeploy}
-              onClick={downloadScriptStub}
+              disabled={!canDeploy || busy}
+              onClick={() => void downloadPowerShellScript()}
             >
               Download PowerShell script
             </button>
             <button
               type="button"
               className="btn btn-secondary"
-              disabled={!canDeploy}
-              onClick={downloadHtmlPack}
+              disabled={!canDeploy || busy}
+              onClick={() => void downloadHtmlPack()}
             >
               Download HTML pack
             </button>
@@ -377,7 +395,7 @@ Write-Host "Done. Send a test message to an external address to verify."
                 void runDeploy("publish-rule");
               }}
             >
-              Try publish rule
+              {hasAzure ? "Publish rule to Exchange" : "Publish (script fallback)"}
             </button>
           </div>
         </section>

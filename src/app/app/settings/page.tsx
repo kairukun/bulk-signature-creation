@@ -118,7 +118,24 @@ export default function SettingsPage() {
           >{`AZURE_AD_TENANT_ID=<dpm-tenant-id>
 AZURE_AD_CLIENT_ID=<app-registration-id>
 AZURE_AD_CLIENT_SECRET=<secret>
+AZURE_AD_ORG_DOMAIN=<optional contoso.onmicrosoft.com>
 NEXT_PUBLIC_APP_URL=<this-app-url>`}</pre>
+          <p className="muted" style={{ marginTop: "0.75rem" }}>
+            For live transport-rule publish: grant the app{" "}
+            <code>Exchange.ManageAsApp</code> (Office 365 Exchange Online), admin
+            consent, and an Exchange RBAC role on the service principal (e.g.
+            Exchange Administrator). Without these, Deploy stays script-download
+            only. Full steps:{" "}
+            <a
+              href="https://github.com/kairukun/bulk-signature-creation/blob/main/docs/DPM-M365-SIGNATURE-RUNBOOK.md"
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "underline" }}
+            >
+              DPM M365 signature runbook
+            </a>
+            .
+          </p>
           <p className="muted" style={{ marginTop: "0.75rem" }}>
             Use the sidebar access menu to preview IT vs Marketing permissions
             for DPM staff.
