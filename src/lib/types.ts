@@ -20,6 +20,10 @@ export interface DirectoryUser {
   mobile?: string;
   company: string;
   website: string;
+  /** Street address (e.g. from FindMi / directory) */
+  streetAddress?: string;
+  /** City, state, zip line */
+  cityStateZip?: string;
   location: string;
   photoUrl?: string;
   linkedIn?: string;
@@ -28,21 +32,36 @@ export interface DirectoryUser {
   groups: string[];
 }
 
+export type SignatureLayout =
+  | "corporate"
+  | "classic"
+  | "modern"
+  | "compact"
+  | "stacked";
+
 export interface SignatureTemplate {
   id: string;
   name: string;
   description: string;
-  layout: "classic" | "modern" | "compact" | "stacked";
+  layout: SignatureLayout;
   primaryColor: string;
   accentColor: string;
   fontFamily: string;
   showPhoto: boolean;
   showLogo: boolean;
   showSocial: boolean;
+  showThankYou: boolean;
+  /** Image URL or data URL for the company logo */
   logoUrl: string;
   logoAlt: string;
+  /** Display width in pixels for the logo image */
+  logoWidth: number;
+  companyNameLine1: string;
+  companyNameLine2: string;
+  companyNameLine2Color: string;
   ctaLabel: string;
   ctaUrl: string;
+  websiteDisplay: string;
   disclaimer: string;
   assignedDepartments: Department[];
   assignedGroups: string[];

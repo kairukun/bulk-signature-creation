@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
+import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
 import { useStore } from "@/lib/store";
-import type { Department, SignatureTemplate } from "@/lib/types";
+import type { Department, SignatureLayout, SignatureTemplate } from "@/lib/types";
 
 const DEPARTMENTS: Department[] = [
   "All",
@@ -18,34 +19,56 @@ const DEPARTMENTS: Department[] = [
   "HR",
 ];
 
-const LAYOUTS: SignatureTemplate["layout"][] = [
+const LAYOUTS: SignatureLayout[] = [
+  "corporate",
   "classic",
   "modern",
   "compact",
   "stacked",
 ];
 
+const MAX_LOGO_BYTES = 900_000;
+
 function blankTemplate(): SignatureTemplate {
   return {
     id: `t-${crypto.randomUUID().slice(0, 8)}`,
     name: "New signature",
-    description: "Custom company signature",
-    layout: "classic",
-    primaryColor: "#0F3D3E",
-    accentColor: "#E07A3D",
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    description: "Company signature with logo",
+    layout: "corporate",
+    primaryColor: "#1F4E79",
+    accentColor: "#C0392B",
+    fontFamily: "Georgia, 'Times New Roman', Times, serif",
     showPhoto: false,
     showLogo: true,
-    showSocial: true,
-    logoUrl: "",
-    logoAlt: "Company",
-    ctaLabel: "Learn more",
-    ctaUrl: "https://example.com",
-    disclaimer: "",
+    showSocial: false,
+    showThankYou: true,
+    logoUrl: DEFAULT_LOGO_PATH,
+    logoAlt: "Dossani Paradise Management",
+    logoWidth: 56,
+    companyNameLine1: "DOSSANI PARADISE",
+    companyNameLine2: "MANAGEMENT",
+    companyNameLine2Color: "#C0392B",
+    ctaLabel: "",
+    ctaUrl: "",
+    websiteDisplay: "www.DossaniParadise.com",
+    disclaimer: DOSSANI_DISCLAIMER,
     assignedDepartments: ["All"],
     assignedGroups: [],
     assignedUserIds: [],
     updatedAt: new Date().toISOString(),
+  };
+}
+
+function withDefaults(template: SignatureTemplate): SignatureTemplate {
+  return {
+    ...blankTemplate(),
+    ...template,
+    showThankYou: template.showThankYou ?? template.layout === "corporate",
+    logoWidth: template.logoWidth || 56,
+    companyNameLine1: template.companyNameLine1 || template.logoAlt || "",
+    companyNameLine2: template.companyNameLine2 || "",
+    companyNameLine2Color: template.companyNameLine2Color || template.accentColor,
+    websiteDisplay: template.websiteDisplay || "",
   };
 }
 
@@ -69,11 +92,12 @@ export default function SignatureEditorPage() {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewUserId, setPreviewUserId] = useState(users[0]?.id ?? "");
   const [saved, setSaved] = useState(false);
+  const [logoError, setLogoError] = useState("");
 
   const template = useMemo(() => {
     if (draft) return draft;
     if (isNew) return blankTemplate();
-    return existing ?? blankTemplate();
+    return existing ? withDefaults(existing) : blankTemplate();
   }, [draft, existing, isNew]);
 
   const previewUser =
@@ -103,6 +127,26 @@ export default function SignatureEditorPage() {
     patch({ assignedDepartments: next.length ? next : ["All"] });
   }
 
+  function onLogoFile(file: File | null) {
+    setLogoError("");
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please choose an image file (PNG, JPG, SVG, or WebP).");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError("Logo must be under ~900KB for Outlook-friendly HTML.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      patch({ logoUrl: result, showLogo: true });
+    };
+    reader.onerror = () => setLogoError("Could not read that file.");
+    reader.readAsDataURL(file);
+  }
+
   function save() {
     if (!canManageSignatures) return;
     upsertTemplate(template);
@@ -121,7 +165,9 @@ export default function SignatureEditorPage() {
       <div className="page-header">
         <div>
           <h1>{isNew ? "New signature" : template.name}</h1>
-          <p>Design, preview across users/devices, and assign targeting rules.</p>
+          <p>
+            Upload a logo and match the Dossani corporate layout for every user.
+          </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <Link href="/app/signatures" className="btn btn-ghost">
@@ -181,11 +227,126 @@ export default function SignatureEditorPage() {
                   type="button"
                   className={`chip ${template.layout === layout ? "active" : ""}`}
                   disabled={!canManageSignatures}
-                  onClick={() => patch({ layout })}
+                  onClick={() =>
+                    patch({
+                      layout,
+                      showThankYou:
+                        layout === "corporate" ? true : template.showThankYou,
+                    })
+                  }
                 >
                   {layout}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="panel-card" style={{ boxShadow: "none", marginBottom: "1rem" }}>
+            <h3 style={{ marginTop: 0 }}>Company logo</h3>
+            <p className="muted" style={{ margin: "0.35rem 0 0.75rem" }}>
+              Upload an image or paste a URL. The logo appears beside the company
+              name in the corporate layout.
+            </p>
+            {template.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={template.logoUrl}
+                alt={template.logoAlt || "Logo preview"}
+                style={{
+                  width: template.logoWidth || 56,
+                  height: "auto",
+                  display: "block",
+                  marginBottom: "0.75rem",
+                  background: "#fff",
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  padding: 4,
+                }}
+              />
+            ) : null}
+            <div className="field">
+              <label htmlFor="logoFile">Upload logo</label>
+              <input
+                id="logoFile"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                disabled={!canManageSignatures}
+                onChange={(e) => onLogoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="logoUrl">Logo URL or data</label>
+              <input
+                id="logoUrl"
+                value={template.logoUrl.startsWith("data:") ? "(uploaded image)" : template.logoUrl}
+                disabled={!canManageSignatures || template.logoUrl.startsWith("data:")}
+                onChange={(e) => patch({ logoUrl: e.target.value, showLogo: true })}
+                placeholder="/dossani-logo.svg or https://..."
+              />
+            </div>
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="logoWidth">Logo width (px)</label>
+                <input
+                  id="logoWidth"
+                  type="number"
+                  min={24}
+                  max={160}
+                  value={template.logoWidth}
+                  disabled={!canManageSignatures}
+                  onChange={(e) =>
+                    patch({ logoWidth: Number(e.target.value) || 56 })
+                  }
+                />
+              </div>
+              <div className="field" style={{ alignContent: "end" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={!canManageSignatures}
+                    onClick={() =>
+                      patch({ logoUrl: DEFAULT_LOGO_PATH, showLogo: true })
+                    }
+                  >
+                    Use default logo
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={!canManageSignatures}
+                    onClick={() => patch({ logoUrl: "", showLogo: false })}
+                  >
+                    Remove logo
+                  </button>
+                </div>
+              </div>
+            </div>
+            {logoError ? (
+              <p className="badge" style={{ marginTop: "0.5rem" }}>
+                {logoError}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="line1">Company name line 1</label>
+              <input
+                id="line1"
+                value={template.companyNameLine1}
+                disabled={!canManageSignatures}
+                onChange={(e) => patch({ companyNameLine1: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="line2">Company name line 2</label>
+              <input
+                id="line2"
+                value={template.companyNameLine2}
+                disabled={!canManageSignatures}
+                onChange={(e) => patch({ companyNameLine2: e.target.value })}
+              />
             </div>
           </div>
 
@@ -201,45 +362,26 @@ export default function SignatureEditorPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="accent">Accent color</label>
+              <label htmlFor="line2color">Line 2 color</label>
               <input
-                id="accent"
+                id="line2color"
                 type="color"
-                value={template.accentColor}
+                value={template.companyNameLine2Color}
                 disabled={!canManageSignatures}
-                onChange={(e) => patch({ accentColor: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="ctaLabel">CTA label</label>
-              <input
-                id="ctaLabel"
-                value={template.ctaLabel}
-                disabled={!canManageSignatures}
-                onChange={(e) => patch({ ctaLabel: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="ctaUrl">CTA URL</label>
-              <input
-                id="ctaUrl"
-                value={template.ctaUrl}
-                disabled={!canManageSignatures}
-                onChange={(e) => patch({ ctaUrl: e.target.value })}
+                onChange={(e) =>
+                  patch({ companyNameLine2Color: e.target.value })
+                }
               />
             </div>
           </div>
 
           <div className="field">
-            <label htmlFor="logoAlt">Logo / brand text</label>
+            <label htmlFor="websiteDisplay">Website display text</label>
             <input
-              id="logoAlt"
-              value={template.logoAlt}
+              id="websiteDisplay"
+              value={template.websiteDisplay}
               disabled={!canManageSignatures}
-              onChange={(e) => patch({ logoAlt: e.target.value })}
+              onChange={(e) => patch({ websiteDisplay: e.target.value })}
             />
           </div>
 
@@ -247,7 +389,7 @@ export default function SignatureEditorPage() {
             <label htmlFor="disclaimer">Disclaimer</label>
             <textarea
               id="disclaimer"
-              rows={3}
+              rows={4}
               value={template.disclaimer}
               disabled={!canManageSignatures}
               onChange={(e) => patch({ disclaimer: e.target.value })}
@@ -262,7 +404,16 @@ export default function SignatureEditorPage() {
                 disabled={!canManageSignatures}
                 onChange={(e) => patch({ showLogo: e.target.checked })}
               />{" "}
-              Show logo text
+              Show logo
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={template.showThankYou}
+                disabled={!canManageSignatures}
+                onChange={(e) => patch({ showThankYou: e.target.checked })}
+              />{" "}
+              Show “Thank You,”
             </label>
             <label>
               <input
@@ -272,15 +423,6 @@ export default function SignatureEditorPage() {
                 onChange={(e) => patch({ showPhoto: e.target.checked })}
               />{" "}
               Show photo / initials
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={template.showSocial}
-                disabled={!canManageSignatures}
-                onChange={(e) => patch({ showSocial: e.target.checked })}
-              />{" "}
-              Show social links
             </label>
           </div>
 

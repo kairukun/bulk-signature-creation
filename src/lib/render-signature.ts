@@ -1,3 +1,4 @@
+import { DEFAULT_LOGO_PATH } from "./constants";
 import type { Campaign, DirectoryUser, SignatureTemplate } from "./types";
 
 function escapeHtml(value: string): string {
@@ -22,6 +23,27 @@ function isCampaignLive(campaign?: Campaign | null): boolean {
   return campaign.startDate <= today && campaign.endDate >= today;
 }
 
+function absoluteAssetUrl(origin: string, url: string): string {
+  if (!url) return "";
+  if (url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  if (!origin) return url;
+  return `${origin.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+function websiteHref(website: string): string {
+  if (!website) return "#";
+  if (website.startsWith("http://") || website.startsWith("https://")) return website;
+  return `https://${website.replace(/^\/\//, "")}`;
+}
+
+function websiteLabel(template: SignatureTemplate, user: DirectoryUser): string {
+  if (template.websiteDisplay) return template.websiteDisplay;
+  const raw = user.website || "";
+  return raw.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
 export function resolveTemplateForUser(
   user: DirectoryUser,
   templates: SignatureTemplate[],
@@ -42,6 +64,40 @@ export function resolveTemplateForUser(
     t.assignedGroups.some((g) => user.groups.includes(g)),
   );
   return byGroup ?? templates[0];
+}
+
+function logoBlock(template: SignatureTemplate, origin: string): string {
+  if (!template.showLogo) return "";
+  const width = template.logoWidth || 56;
+  const src = absoluteAssetUrl(origin, template.logoUrl || DEFAULT_LOGO_PATH);
+  const line1 = template.companyNameLine1 || template.logoAlt;
+  const line2 = template.companyNameLine2;
+  const line2Color = template.companyNameLine2Color || template.accentColor;
+  const font = template.fontFamily;
+  const color = template.primaryColor;
+
+  const image = src
+    ? `<img src="${escapeHtml(src)}" width="${width}" height="${width}" alt="${escapeHtml(template.logoAlt || "Logo")}" style="display:block;border:0;outline:none;text-decoration:none;width:${width}px;height:auto;max-width:${width}px;" />`
+    : "";
+
+  const nameCell = `
+    <td style="vertical-align:middle;padding-left:${image ? "10px" : "0"};">
+      <div style="font:700 14px ${escapeHtml(font)};color:${escapeHtml(color)};letter-spacing:0.03em;line-height:1.15;text-transform:uppercase;">
+        ${escapeHtml(line1)}
+      </div>
+      ${
+        line2
+          ? `<div style="font:700 12px ${escapeHtml(font)};color:${escapeHtml(line2Color)};letter-spacing:0.06em;line-height:1.2;text-transform:uppercase;margin-top:2px;">${escapeHtml(line2)}</div>`
+          : ""
+      }
+    </td>`;
+
+  return `<table cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;margin-bottom:8px;">
+    <tr>
+      ${image ? `<td style="vertical-align:middle;">${image}</td>` : ""}
+      ${nameCell}
+    </tr>
+  </table>`;
 }
 
 export function renderSignatureHtml(options: {
@@ -73,6 +129,15 @@ export function renderSignatureHtml(options: {
     .slice(0, 2)
     .toUpperCase();
 
+  const street =
+    user.streetAddress ||
+    (user.location.includes(",") ? "" : user.location) ||
+    "";
+  const cityStateZip =
+    user.cityStateZip ||
+    (user.streetAddress ? user.location : user.location) ||
+    "";
+
   const photoCell = template.showPhoto
     ? `<td style="padding-right:14px;vertical-align:top;">
         ${
@@ -83,39 +148,61 @@ export function renderSignatureHtml(options: {
       </td>`
     : "";
 
-  const logoRow =
-    template.showLogo
-      ? `<tr><td style="padding-top:10px;font:700 13px ${escapeHtml(font)};color:${escapeHtml(color)};letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(template.logoAlt || user.company)}</td></tr>`
-      : "";
+  const logoHtml = logoBlock(template, origin);
 
   const social =
     template.showSocial && (user.linkedIn || user.twitter || user.website)
       ? `<tr><td style="padding-top:8px;font:12px ${escapeHtml(font)};">
           ${user.linkedIn ? `<a href="${escapeHtml(user.linkedIn)}" style="color:${escapeHtml(accent)};text-decoration:none;margin-right:10px;">LinkedIn</a>` : ""}
           ${user.twitter ? `<a href="${escapeHtml(user.twitter)}" style="color:${escapeHtml(accent)};text-decoration:none;margin-right:10px;">X</a>` : ""}
-          ${user.website ? `<a href="${escapeHtml(user.website)}" style="color:${escapeHtml(accent)};text-decoration:none;">Website</a>` : ""}
+          ${user.website ? `<a href="${escapeHtml(websiteHref(user.website))}" style="color:${escapeHtml(accent)};text-decoration:none;">Website</a>` : ""}
         </td></tr>`
       : "";
 
   const cta =
     template.ctaLabel && template.ctaUrl
       ? `<tr><td style="padding-top:10px;">
-          <a href="${escapeHtml(ctaHref)}" style="display:inline-block;background:${escapeHtml(accent)};color:#fff;text-decoration:none;font:600 12px ${escapeHtml(font)};padding:8px 12px;border-radius:4px;">${escapeHtml(template.ctaLabel)}</a>
+          <a href="${escapeHtml(ctaHref)}" style="display:inline-block;background:${escapeHtml(accent)};color:#fff;text-decoration:none;font:600 12px Arial, Helvetica, sans-serif;padding:8px 12px;border-radius:4px;">${escapeHtml(template.ctaLabel)}</a>
         </td></tr>`
       : "";
 
   const banner =
     live && campaign
       ? `<tr><td style="padding-top:12px;">
-          <a href="${escapeHtml(bannerHref)}" style="display:block;background:${escapeHtml(campaign.backgroundColor)};color:${escapeHtml(campaign.textColor)};text-decoration:none;font:600 12px ${escapeHtml(font)};padding:10px 12px;border-radius:4px;">
+          <a href="${escapeHtml(bannerHref)}" style="display:block;background:${escapeHtml(campaign.backgroundColor)};color:${escapeHtml(campaign.textColor)};text-decoration:none;font:600 12px Arial, Helvetica, sans-serif;padding:10px 12px;border-radius:4px;">
             ${escapeHtml(campaign.bannerText)}
           </a>
         </td></tr>`
       : "";
 
   const disclaimer = template.disclaimer
-    ? `<tr><td style="padding-top:10px;font:10px ${escapeHtml(font)};color:#6b7280;max-width:420px;line-height:1.4;">${escapeHtml(template.disclaimer)}</td></tr>`
+    ? `<tr><td style="padding-top:12px;font:9px Arial, Helvetica, sans-serif;color:#333333;max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
     : "";
+
+  if (template.layout === "corporate") {
+    const web = websiteLabel(template, user);
+    const webHref = websiteHref(user.website || template.websiteDisplay || web);
+    return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:${escapeHtml(color)};max-width:560px;">
+      ${
+        template.showThankYou !== false
+          ? `<tr><td style="font:700 15px ${escapeHtml(font)};color:${escapeHtml(color)};padding-bottom:8px;">Thank You,</td></tr>`
+          : ""
+      }
+      <tr><td style="font:700 16px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;letter-spacing:0.02em;">${escapeHtml(user.displayName)}</td></tr>
+      <tr><td style="font:italic 13px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};text-transform:uppercase;padding-top:2px;">${escapeHtml(user.jobTitle)}</td></tr>
+      <tr><td>${logoHtml}</td></tr>
+      ${street ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(street)}</td></tr>` : ""}
+      ${cityStateZip ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(cityStateZip)}</td></tr>` : ""}
+      ${user.phone ? `<tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">${escapeHtml(user.phone)}</td></tr>` : ""}
+      <tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};padding-top:2px;">
+        Email: <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(user.email)}</a>
+      </td></tr>
+      <tr><td style="font:12px Arial, Helvetica, sans-serif;color:${escapeHtml(color)};">
+        Website: <a href="${escapeHtml(webHref)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(web)}</a>
+      </td></tr>
+      ${cta}${banner}${disclaimer}
+    </table>`;
+  }
 
   if (template.layout === "compact") {
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:#111827;">
@@ -136,7 +223,7 @@ export function renderSignatureHtml(options: {
 
   if (template.layout === "stacked") {
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:#111827;max-width:360px;">
-      ${logoRow}
+      <tr><td>${logoHtml}</td></tr>
       <tr><td style="padding-top:8px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</td></tr>
       <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(user.jobTitle)} · ${escapeHtml(user.department)}</td></tr>
       <tr><td style="padding-top:6px;font:12px ${escapeHtml(font)};"><a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a></td></tr>
@@ -161,7 +248,8 @@ export function renderSignatureHtml(options: {
       </tr>
       <tr><td colspan="2">
         <table cellpadding="0" cellspacing="0" border="0" width="100%">
-          ${logoRow}${social}${cta}${banner}${disclaimer}
+          <tr><td>${logoHtml}</td></tr>
+          ${social}${cta}${banner}${disclaimer}
         </table>
       </td></tr>
     </table>`;
@@ -173,7 +261,7 @@ export function renderSignatureHtml(options: {
       ${photoCell}
       <td style="vertical-align:top;">
         <table cellpadding="0" cellspacing="0" border="0">
-          ${logoRow}
+          <tr><td>${logoHtml}</td></tr>
           <tr><td style="padding-top:4px;font:700 16px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.displayName)}</td></tr>
           <tr><td style="font:13px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(user.jobTitle)}</td></tr>
           <tr><td style="font:12px ${escapeHtml(font)};color:#6b7280;">${escapeHtml(user.company)} | ${escapeHtml(user.department)}</td></tr>

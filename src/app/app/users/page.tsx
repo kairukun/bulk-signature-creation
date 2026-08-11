@@ -78,6 +78,10 @@ export default function UsersPage() {
                 <td>
                   {user.jobTitle}
                   <div className="muted">{user.department}</div>
+                  <div className="muted">
+                    {user.streetAddress || user.location}
+                    {user.cityStateZip ? ` · ${user.cityStateZip}` : ""}
+                  </div>
                 </td>
                 <td>{user.groups.join(", ")}</td>
                 <td>

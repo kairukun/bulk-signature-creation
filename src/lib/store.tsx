@@ -19,7 +19,7 @@ import type {
   SignatureTemplate,
 } from "./types";
 
-const STORAGE_KEY = "bulk-signature-creation:v1";
+const STORAGE_KEY = "bulk-signature-creation:v2";
 
 interface StoreContextValue extends AppState {
   hydrated: boolean;
