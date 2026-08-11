@@ -93,6 +93,10 @@ function loadState(): AppState {
         ...base.settings,
         ...parsed.settings,
         findMiConnected: parsed.settings?.findMiConnected ?? false,
+        azureClientId: parsed.settings?.azureClientId ?? "",
+        azureOrgDomain: parsed.settings?.azureOrgDomain ?? "",
+        exchangeAppConsented: parsed.settings?.exchangeAppConsented ?? false,
+        exchangeRbacAssigned: parsed.settings?.exchangeRbacAssigned ?? false,
         deployMode,
       },
     };

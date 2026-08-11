@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COMPANY_NAME } from "@/lib/constants";
-import { hasAzureCredentials } from "@/lib/deploy/azure";
+import {
+  getAzureCredentialStatus,
+  hasAzureCredentials,
+} from "@/lib/deploy/azure";
 import { publishTransportRule } from "@/lib/deploy/exchange-publish";
 import { buildTransportRulePowerShell } from "@/lib/deploy/powershell";
 import {
@@ -11,14 +14,15 @@ import {
 import type { SignatureTemplate } from "@/lib/types";
 
 export async function GET() {
-  const hasAzure = hasAzureCredentials();
+  const status = getAzureCredentialStatus();
   return NextResponse.json({
-    hasAzure,
+    ...status,
     ruleName: TRANSPORT_RULE_NAME,
-    publishMode: hasAzure ? "live" : "script-only",
-    message: hasAzure
+    message: status.hasAzure
       ? "AZURE_AD_* credentials detected. Publish rule can create/update the Exchange Online transport rule remotely."
-      : "No AZURE_AD_* credentials. Publish falls back to PowerShell script download.",
+      : status.missing.length
+        ? `Missing host env: ${status.missing.join(", ")}. Publish falls back to PowerShell script download.`
+        : "No AZURE_AD_* credentials. Publish falls back to PowerShell script download.",
   });
 }
 

@@ -122,6 +122,14 @@ export interface AppSettings {
   m365Connected: boolean;
   findMiConnected: boolean;
   tenantId: string;
+  /** Non-secret app registration id (reference / checklist). Secrets stay on the host. */
+  azureClientId: string;
+  /** Optional *.onmicrosoft.com (or custom) domain for Exchange Admin API routing notes. */
+  azureOrgDomain: string;
+  /** IT checklist: Exchange.ManageAsApp consented in Entra. */
+  exchangeAppConsented: boolean;
+  /** IT checklist: Exchange RBAC assigned to the app service principal. */
+  exchangeRbacAssigned: boolean;
   deployMode: "demo" | "export-script" | "publish-rule";
   lastSyncAt?: string;
   lastFindMiSyncAt?: string;
