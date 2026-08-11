@@ -32,8 +32,17 @@ function StatusDot({ ok }: { ok: boolean }) {
 }
 
 export default function SettingsPage() {
-  const { settings, updateSettings, resetDemo, canDeploy, hydrated } =
-    useStore();
+  const {
+    settings,
+    updateSettings,
+    resetDemo,
+    canDeploy,
+    hydrated,
+    sharedSyncStatus,
+    sharedSyncError,
+    sharedUpdatedAt,
+    sharedRevision,
+  } = useStore();
   const [saved, setSaved] = useState(false);
   const [host, setHost] = useState<HostStatus | null>(null);
   const [hostError, setHostError] = useState("");
@@ -108,6 +117,45 @@ export default function SettingsPage() {
           {hostError}
         </p>
       ) : null}
+
+      <section className="panel-card" style={{ marginBottom: "1rem" }}>
+        <h3>Shared workspace</h3>
+        <p className="muted" style={{ marginTop: "0.5rem" }}>
+          Signatures, FindMi directory edits, and campaigns are stored in Vercel
+          Blob so every signed-in user sees the same data. Requires{" "}
+          <code>BLOB_READ_WRITE_TOKEN</code> on the host.
+        </p>
+        <p style={{ marginTop: "0.85rem" }}>
+          Status:{" "}
+          <span
+            className={`badge ${
+              sharedSyncStatus === "saved" || sharedSyncStatus === "syncing"
+                ? "ok"
+                : ""
+            }`}
+          >
+            {sharedSyncStatus === "saved"
+              ? "Shared"
+              : sharedSyncStatus === "syncing"
+                ? "Saving…"
+                : sharedSyncStatus === "local-only"
+                  ? "Local only"
+                  : sharedSyncStatus === "error"
+                    ? "Error"
+                    : "Idle"}
+          </span>
+          {sharedRevision > 0 ? (
+            <span className="muted"> · revision {sharedRevision}</span>
+          ) : null}
+        </p>
+        <p className="muted" style={{ marginTop: "0.45rem" }}>
+          {sharedSyncError
+            ? sharedSyncError
+            : sharedUpdatedAt
+              ? `Last shared save: ${new Date(sharedUpdatedAt).toLocaleString()}`
+              : "No shared document yet — first seed happens when someone with directory data opens the app."}
+        </p>
+      </section>
 
       <section className="panel-card" style={{ marginBottom: "1rem" }}>
         <h3>Live publish status (host / Vercel)</h3>
@@ -345,7 +393,12 @@ export default function SettingsPage() {
 AZURE_AD_CLIENT_ID=${settings.azureClientId || "<app-registration-id>"}
 AZURE_AD_CLIENT_SECRET=<secret — Vercel only>
 AZURE_AD_ORG_DOMAIN=${settings.azureOrgDomain || "<optional contoso.onmicrosoft.com>"}
-NEXT_PUBLIC_APP_URL=https://bulk-signature-creation.vercel.app`}</pre>
+NEXT_PUBLIC_APP_URL=https://bulk-signature-creation.vercel.app
+BLOB_READ_WRITE_TOKEN=<from linked Vercel Blob store>`}</pre>
+          <p className="muted" style={{ marginTop: "0.75rem" }}>
+            Shared workspace uses a private Blob store (<code>dpm-shared-state</code>).
+            Linking the store sets <code>BLOB_READ_WRITE_TOKEN</code> automatically.
+          </p>
           <p style={{ marginTop: "0.85rem" }}>
             <a
               href={VERCEL_ENV_URL}

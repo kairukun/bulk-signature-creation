@@ -22,6 +22,20 @@ AUTH_SECRET=
 
 Unauthenticated visitors are redirected to `/login`. Email click-tracking (`/api/track/*`) stays public.
 
+## Shared workspace
+
+Signatures, FindMi directory edits, campaigns, and settings are stored in **Vercel Blob** so every signed-in user sees the same data (not per-browser only).
+
+```env
+BLOB_READ_WRITE_TOKEN=
+```
+
+Create a **private** Blob store on the Vercel project (Storage → Blob). Linking the store sets `BLOB_READ_WRITE_TOKEN` automatically. Without it, the app falls back to local browser storage.
+
+- First browser with real data seeds the shared document when the server copy is empty
+- Role switcher (`Admin` / `IT` / …) stays per-browser
+- Status shows in the sidebar: **Shared** / syncing / error
+
 ## Local run
 
 ```bash
@@ -67,7 +81,7 @@ Pulls from [DPM FindMi](https://dossaniparadise.github.io/DPM-FindMi/):
 - District Managers (area coaches)
 - Repair Technicians
 
-Open **FindMi directory** → **Sync from FindMi**. You can edit any synced record locally; those edits are kept on the next sync. Use **Reset from FindMi** on a record to discard local changes.
+Open **FindMi directory** → **Sync from FindMi**. You can edit any synced record; those edits are kept on the next sync and shared across signed-in users via Blob. Use **Reset from FindMi** on a record to discard local changes.
 
 Optional override:
 

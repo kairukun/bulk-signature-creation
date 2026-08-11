@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -28,6 +29,8 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "dpm-email-signatures:v5";
+const SAVE_DEBOUNCE_MS = 400;
+const POLL_INTERVAL_MS = 30_000;
 
 function normalizeUserDepartment(user: DirectoryUser): DirectoryUser {
   if (isDepartment(user.department) && user.department !== "All") {
@@ -77,8 +80,14 @@ const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
   "department",
 ];
 
+type SharedSyncStatus = "idle" | "syncing" | "saved" | "error" | "local-only";
+
 interface StoreContextValue extends AppState {
   hydrated: boolean;
+  sharedRevision: number;
+  sharedSyncStatus: SharedSyncStatus;
+  sharedSyncError: string | null;
+  sharedUpdatedAt: string | null;
   setRole: (role: Role) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   upsertTemplate: (template: SignatureTemplate) => void;
@@ -112,74 +121,406 @@ interface StoreContextValue extends AppState {
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
-function loadState(): AppState {
+function normalizeState(parsed: Partial<AppState>): AppState {
+  const base = createInitialState();
+  const legacyMode = parsed.settings?.deployMode as string | undefined;
+  const deployMode =
+    legacyMode === "export-script" ||
+    legacyMode === "publish-rule" ||
+    legacyMode === "demo"
+      ? legacyMode
+      : legacyMode === "exchange-rule"
+        ? "export-script"
+        : "demo";
+
+  return {
+    ...base,
+    ...parsed,
+    users: (parsed.users ?? [])
+      .filter((u) => u.source !== "sample")
+      .map(normalizeUserDepartment),
+    stores: parsed.stores ?? [],
+    findMiOverrides: parsed.findMiOverrides ?? {},
+    templates: (parsed.templates ?? base.templates).map((t) => ({
+      ...t,
+      assignedDepartments: normalizeDepartmentList(t.assignedDepartments),
+    })),
+    campaigns: (parsed.campaigns ?? base.campaigns).map((c) => ({
+      ...c,
+      targetDepartments: normalizeDepartmentList(c.targetDepartments),
+    })),
+    settings: {
+      ...base.settings,
+      ...parsed.settings,
+      findMiConnected: parsed.settings?.findMiConnected ?? false,
+      azureClientId: parsed.settings?.azureClientId ?? "",
+      azureOrgDomain: parsed.settings?.azureOrgDomain ?? "",
+      exchangeAppConsented: parsed.settings?.exchangeAppConsented ?? false,
+      exchangeRbacAssigned: parsed.settings?.exchangeRbacAssigned ?? false,
+      deployMode,
+      role: parsed.settings?.role ?? base.settings.role,
+    },
+  };
+}
+
+function loadLocalState(): AppState {
   if (typeof window === "undefined") return createInitialState();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
-    const parsed = JSON.parse(raw) as Partial<AppState>;
-    const base = createInitialState();
-    const legacyMode = parsed.settings?.deployMode as string | undefined;
-    const deployMode =
-      legacyMode === "export-script" ||
-      legacyMode === "publish-rule" ||
-      legacyMode === "demo"
-        ? legacyMode
-        : legacyMode === "exchange-rule"
-          ? "export-script"
-          : "demo";
-
-    return {
-      ...base,
-      ...parsed,
-      users: (parsed.users ?? [])
-        .filter((u) => u.source !== "sample")
-        .map(normalizeUserDepartment),
-      stores: parsed.stores ?? [],
-      findMiOverrides: parsed.findMiOverrides ?? {},
-      templates: (parsed.templates ?? base.templates).map((t) => ({
-        ...t,
-        assignedDepartments: normalizeDepartmentList(t.assignedDepartments),
-      })),
-      campaigns: (parsed.campaigns ?? base.campaigns).map((c) => ({
-        ...c,
-        targetDepartments: normalizeDepartmentList(c.targetDepartments),
-      })),
-      settings: {
-        ...base.settings,
-        ...parsed.settings,
-        findMiConnected: parsed.settings?.findMiConnected ?? false,
-        azureClientId: parsed.settings?.azureClientId ?? "",
-        azureOrgDomain: parsed.settings?.azureOrgDomain ?? "",
-        exchangeAppConsented: parsed.settings?.exchangeAppConsented ?? false,
-        exchangeRbacAssigned: parsed.settings?.exchangeRbacAssigned ?? false,
-        deployMode,
-      },
-    };
+    return normalizeState(JSON.parse(raw) as Partial<AppState>);
   } catch {
     return createInitialState();
   }
 }
 
+function withLocalRole(state: AppState, role: Role): AppState {
+  if (state.settings.role === role) return state;
+  return {
+    ...state,
+    settings: { ...state.settings, role },
+  };
+}
+
+function hasSeedableLocalData(state: AppState): boolean {
+  return (
+    state.users.length > 0 ||
+    state.stores.length > 0 ||
+    Object.keys(state.findMiOverrides).length > 0 ||
+    Boolean(state.settings.lastFindMiSyncAt) ||
+    Boolean(state.settings.lastDeployAt)
+  );
+}
+
+/** Shared fields only — excludes per-browser role. */
+function sharedSnapshot(state: AppState): string {
+  const { role: _role, ...sharedSettings } = state.settings;
+  return JSON.stringify({
+    users: state.users,
+    stores: state.stores,
+    findMiOverrides: state.findMiOverrides,
+    templates: state.templates,
+    campaigns: state.campaigns,
+    settings: sharedSettings,
+  });
+}
+
+type StateApiResponse = {
+  ok?: boolean;
+  empty?: boolean;
+  revision?: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  state?: AppState | null;
+  error?: string;
+  message?: string;
+};
+
+async function fetchSharedState(): Promise<StateApiResponse> {
+  const res = await fetch(`/api/state?ts=${Date.now()}`, {
+    cache: "no-store",
+    headers: { "Cache-Control": "no-cache" },
+  });
+  const data = (await res.json().catch(() => ({}))) as StateApiResponse;
+  return { ...data, ok: data.ok ?? res.ok };
+}
+
+async function putSharedState(
+  state: AppState,
+  revision: number,
+): Promise<StateApiResponse> {
+  const res = await fetch("/api/state", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state, revision }),
+  });
+  const data = (await res.json().catch(() => ({}))) as StateApiResponse;
+  return { ...data, ok: data.ok ?? res.ok };
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(createInitialState);
   const [hydrated, setHydrated] = useState(false);
+  const [sharedRevision, setSharedRevision] = useState(0);
+  const [sharedSyncStatus, setSharedSyncStatus] =
+    useState<SharedSyncStatus>("idle");
+  const [sharedSyncError, setSharedSyncError] = useState<string | null>(null);
+  const [sharedUpdatedAt, setSharedUpdatedAt] = useState<string | null>(null);
+
+  const stateRef = useRef(state);
+  const revisionRef = useRef(0);
+  const localRoleRef = useRef<Role>("admin");
+  const hydratedRef = useRef(false);
+  const sharedEnabledRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const applyingRemoteRef = useRef(false);
+  const skipInitialPersistRef = useRef(true);
+  const lastSharedSnapshotRef = useRef("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
-    setState(loadState());
-    setHydrated(true);
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    revisionRef.current = sharedRevision;
+  }, [sharedRevision]);
+
+  const applyRemoteState = useCallback((remote: AppState, meta: {
+    revision: number;
+    updatedAt?: string | null;
+  }) => {
+    applyingRemoteRef.current = true;
+    const next = withLocalRole(normalizeState(remote), localRoleRef.current);
+    setState(next);
+    stateRef.current = next;
+    lastSharedSnapshotRef.current = sharedSnapshot(next);
+    setSharedRevision(meta.revision);
+    revisionRef.current = meta.revision;
+    setSharedUpdatedAt(meta.updatedAt ?? null);
+    dirtyRef.current = false;
+    queueMicrotask(() => {
+      applyingRemoteRef.current = false;
+    });
   }, []);
 
+  const persistShared = useCallback(async () => {
+    if (!sharedEnabledRef.current || !hydratedRef.current) return;
+    if (savingRef.current) return;
+
+    savingRef.current = true;
+    setSharedSyncStatus("syncing");
+    setSharedSyncError(null);
+
+    try {
+      const payload = stateRef.current;
+      const result = await putSharedState(payload, revisionRef.current);
+      if (!result.ok) {
+        const message =
+          result.message ||
+          result.error ||
+          "Failed to save shared workspace";
+        if (result.error === "blob_not_configured") {
+          sharedEnabledRef.current = false;
+          setSharedSyncStatus("local-only");
+        } else {
+          setSharedSyncStatus("error");
+        }
+        setSharedSyncError(message);
+        return;
+      }
+
+      const nextRevision = Number(result.revision ?? revisionRef.current + 1);
+      setSharedRevision(nextRevision);
+      revisionRef.current = nextRevision;
+      setSharedUpdatedAt(result.updatedAt ?? new Date().toISOString());
+      dirtyRef.current = false;
+      lastSharedSnapshotRef.current = sharedSnapshot(payload);
+      setSharedSyncStatus("saved");
+      setSharedSyncError(null);
+    } catch (error) {
+      setSharedSyncStatus("error");
+      setSharedSyncError(
+        error instanceof Error ? error.message : "Failed to save shared workspace",
+      );
+    } finally {
+      savingRef.current = false;
+      if (dirtyRef.current && sharedEnabledRef.current) {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          void persistShared();
+        }, SAVE_DEBOUNCE_MS);
+      }
+    }
+  }, []);
+
+  const scheduleSharedSave = useCallback(() => {
+    if (!sharedEnabledRef.current || !hydratedRef.current) return;
+    if (applyingRemoteRef.current) return;
+    dirtyRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void persistShared();
+    }, SAVE_DEBOUNCE_MS);
+  }, [persistShared]);
+
+  const refreshFromShared = useCallback(async () => {
+    if (!sharedEnabledRef.current || !hydratedRef.current) return;
+    if (dirtyRef.current || savingRef.current) return;
+
+    try {
+      const data = await fetchSharedState();
+      if (!data.ok) {
+        if (data.error === "blob_not_configured") {
+          sharedEnabledRef.current = false;
+          setSharedSyncStatus("local-only");
+          setSharedSyncError(
+            data.message || "Shared storage is not configured.",
+          );
+        }
+        return;
+      }
+      if (data.empty || !data.state) return;
+
+      const remoteRevision = Number(data.revision ?? 0);
+      if (remoteRevision <= revisionRef.current) return;
+
+      applyRemoteState(data.state, {
+        revision: remoteRevision,
+        updatedAt: data.updatedAt,
+      });
+      setSharedSyncStatus("saved");
+      setSharedSyncError(null);
+    } catch {
+      // Keep working offline from local cache; next poll retries.
+    }
+  }, [applyRemoteState]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrate() {
+      const local = loadLocalState();
+      localRoleRef.current = local.settings.role;
+
+      // Show local cache immediately while shared fetch runs.
+      setState(local);
+      stateRef.current = local;
+
+      try {
+        const data = await fetchSharedState();
+        if (cancelled) return;
+
+        if (!data.ok && data.error === "blob_not_configured") {
+          sharedEnabledRef.current = false;
+          setSharedSyncStatus("local-only");
+          setSharedSyncError(
+            data.message ||
+              "Shared storage is not configured. Set BLOB_READ_WRITE_TOKEN.",
+          );
+          hydratedRef.current = true;
+          setHydrated(true);
+          return;
+        }
+
+        if (!data.ok) {
+          sharedEnabledRef.current = false;
+          setSharedSyncStatus("error");
+          setSharedSyncError(
+            data.message || data.error || "Failed to load shared workspace",
+          );
+          hydratedRef.current = true;
+          setHydrated(true);
+          return;
+        }
+
+        sharedEnabledRef.current = true;
+
+        if (data.empty || !data.state) {
+          if (hasSeedableLocalData(local)) {
+            setSharedSyncStatus("syncing");
+            const seeded = await putSharedState(local, 0);
+            if (cancelled) return;
+            if (seeded.ok) {
+              setSharedRevision(Number(seeded.revision ?? 1));
+              revisionRef.current = Number(seeded.revision ?? 1);
+              lastSharedSnapshotRef.current = sharedSnapshot(local);
+              setSharedUpdatedAt(
+                seeded.updatedAt ?? new Date().toISOString(),
+              );
+              setSharedSyncStatus("saved");
+              setSharedSyncError(null);
+            } else {
+              setSharedSyncStatus("error");
+              setSharedSyncError(
+                seeded.message ||
+                  seeded.error ||
+                  "Failed to seed shared workspace",
+              );
+            }
+          } else {
+            setSharedRevision(0);
+            revisionRef.current = 0;
+            lastSharedSnapshotRef.current = sharedSnapshot(local);
+            setSharedSyncStatus("saved");
+            setSharedSyncError(null);
+          }
+        } else {
+          applyRemoteState(data.state, {
+            revision: Number(data.revision ?? 0),
+            updatedAt: data.updatedAt,
+          });
+          setSharedSyncStatus("saved");
+          setSharedSyncError(null);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        sharedEnabledRef.current = false;
+        setSharedSyncStatus("error");
+        setSharedSyncError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load shared workspace",
+        );
+      } finally {
+        if (!cancelled) {
+          hydratedRef.current = true;
+          setHydrated(true);
+        }
+      }
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyRemoteState]);
+
+  // Cache mirror + schedule shared save (skip role-only / post-hydrate passes).
   useEffect(() => {
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state, hydrated]);
+    localRoleRef.current = state.settings.role;
+    if (applyingRemoteRef.current) return;
+    if (skipInitialPersistRef.current) {
+      skipInitialPersistRef.current = false;
+      if (!lastSharedSnapshotRef.current) {
+        lastSharedSnapshotRef.current = sharedSnapshot(state);
+      }
+      return;
+    }
+    const snapshot = sharedSnapshot(state);
+    if (snapshot === lastSharedSnapshotRef.current) return;
+    scheduleSharedSave();
+  }, [state, hydrated, scheduleSharedSave]);
+
+  // Focus + interval poll for cross-user updates.
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const onFocus = () => {
+      void refreshFromShared();
+    };
+    window.addEventListener("focus", onFocus);
+    const interval = window.setInterval(() => {
+      void refreshFromShared();
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(interval);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [hydrated, refreshFromShared]);
 
   const setRole = useCallback((role: Role) => {
+    localRoleRef.current = role;
     setState((s) => ({ ...s, settings: { ...s.settings, role } }));
   }, []);
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
+    if (patch.role) localRoleRef.current = patch.role;
     setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   }, []);
 
@@ -429,10 +770,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetDemo = useCallback(() => {
-    const fresh = createInitialState();
+    const fresh = withLocalRole(createInitialState(), localRoleRef.current);
+    applyingRemoteRef.current = true;
     setState(fresh);
+    stateRef.current = fresh;
+    lastSharedSnapshotRef.current = "";
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-  }, []);
+    queueMicrotask(() => {
+      applyingRemoteRef.current = false;
+      dirtyRef.current = true;
+      void persistShared();
+    });
+  }, [persistShared]);
 
   const role = state.settings.role;
   const canManageSignatures = role === "admin" || role === "it";
@@ -444,6 +793,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       hydrated,
+      sharedRevision,
+      sharedSyncStatus,
+      sharedSyncError,
+      sharedUpdatedAt,
       setRole,
       updateSettings,
       upsertTemplate,
@@ -466,6 +819,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       state,
       hydrated,
+      sharedRevision,
+      sharedSyncStatus,
+      sharedSyncError,
+      sharedUpdatedAt,
       setRole,
       updateSettings,
       upsertTemplate,

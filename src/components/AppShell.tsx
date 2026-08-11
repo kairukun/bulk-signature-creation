@@ -25,13 +25,43 @@ const ROLES: { value: Role; label: string }[] = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { settings, setRole, hydrated } = useStore();
+  const {
+    settings,
+    setRole,
+    hydrated,
+    sharedSyncStatus,
+    sharedSyncError,
+    sharedUpdatedAt,
+    sharedRevision,
+  } = useStore();
 
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
     router.refresh();
   }
+
+  function sharedStatusLabel(): string {
+    switch (sharedSyncStatus) {
+      case "syncing":
+        return "Shared workspace · saving…";
+      case "saved":
+        return sharedUpdatedAt
+          ? `Shared workspace · saved ${new Date(sharedUpdatedAt).toLocaleString()}`
+          : `Shared workspace · revision ${sharedRevision}`;
+      case "local-only":
+        return "Local only · Blob not configured";
+      case "error":
+        return sharedSyncError
+          ? `Shared sync error · ${sharedSyncError}`
+          : "Shared sync error";
+      default:
+        return hydrated ? "Shared workspace" : "Loading workspace…";
+    }
+  }
+
+  const sharedOk =
+    sharedSyncStatus === "saved" || sharedSyncStatus === "syncing";
 
   return (
     <div className="app-shell">
@@ -80,6 +110,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               : settings.m365Connected
                 ? "Tenant connected"
                 : "Sample data"}
+          </p>
+          <p
+            className="muted"
+            title={sharedSyncError || undefined}
+            style={{ marginTop: "0.35rem" }}
+          >
+            <span
+              className={`badge ${sharedOk ? "ok" : ""}`}
+              style={{ marginRight: "0.35rem" }}
+            >
+              {sharedSyncStatus === "syncing"
+                ? "Syncing"
+                : sharedSyncStatus === "saved"
+                  ? "Shared"
+                  : sharedSyncStatus === "local-only"
+                    ? "Local"
+                    : sharedSyncStatus === "error"
+                      ? "Error"
+                      : "…"}
+            </span>
+            {sharedStatusLabel()}
           </p>
           <button
             type="button"

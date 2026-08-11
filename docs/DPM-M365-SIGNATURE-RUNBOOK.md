@@ -134,9 +134,12 @@ AZURE_AD_CLIENT_ID=<app-registration-client-id>
 AZURE_AD_CLIENT_SECRET=<client-secret>
 AZURE_AD_ORG_DOMAIN=<optional contoso.onmicrosoft.com>
 NEXT_PUBLIC_APP_URL=<https://your-app-host>
+BLOB_READ_WRITE_TOKEN=<from Vercel Blob store — shared workspace>
 ```
 
 `AZURE_AD_ORG_DOMAIN` improves Admin API routing for app-only calls; if omitted, the tenant GUID is used as the routing host.
+
+`BLOB_READ_WRITE_TOKEN` is required so both logins (and any allowlisted emails) share the same signatures/directory. Create a **private** Blob store on the project; Vercel injects the token when the store is linked.
 
 ### 5. Publish from the app
 
@@ -196,8 +199,24 @@ FindMi sync in this app is the directory source of truth for **people data in th
 
 ---
 
+## Shared workspace (both logins)
+
+Signatures, directory overrides, campaigns, and most settings live in one private Vercel Blob document (`dpm-app-state.json`), loaded and saved through `GET`/`PUT /api/state` (session required).
+
+| Item | Detail |
+|------|--------|
+| Env | `BLOB_READ_WRITE_TOKEN` (auto-set when a Blob store is linked to the project) |
+| Seed | If Blob is empty, the first browser with FindMi/users data uploads its local copy |
+| Sync | Debounced save on edit; refresh on window focus and ~30s poll |
+| Not shared | Sidebar **Your access** role (per browser) |
+
+Confirm in the app sidebar: badge **Shared**. If you see **Local only**, the Blob token is missing on that host.
+
+---
+
 ## Operational checklist
 
+- [ ] `BLOB_READ_WRITE_TOKEN` set (shared workspace shows **Shared**)
 - [ ] FindMi synced and reviewed
 - [ ] Corporate template + disclaimer approved
 - [ ] PowerShell script reviewed (or live publish succeeded)
@@ -217,4 +236,4 @@ FindMi sync in this app is the directory source of truth for **people data in th
 | `/app/deploy` | Script / HTML pack / publish |
 | `/app/settings` | Env var reminder for the host |
 
-APIs: `POST /api/deploy/script`, `POST /api/deploy/pack`, `POST /api/deploy` (`mode`: `demo` \| `export-script` \| `publish-rule`), `GET /api/deploy` (credential status).
+APIs: `POST /api/deploy/script`, `POST /api/deploy/pack`, `POST /api/deploy` (`mode`: `demo` \| `export-script` \| `publish-rule`), `GET /api/deploy` (credential status), `GET`/`PUT /api/state` (shared workspace).
