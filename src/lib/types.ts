@@ -10,6 +10,13 @@ export type Department =
   | "Finance"
   | "HR";
 
+export type FindMiRole =
+  | "store"
+  | "vp"
+  | "director"
+  | "district_manager"
+  | "repair_technician";
+
 export interface DirectoryUser {
   id: string;
   displayName: string;
@@ -34,6 +41,9 @@ export interface DirectoryUser {
   storeId?: string;
   storeName?: string;
   storeNumber?: string;
+  findMiRole?: FindMiRole;
+  findMiId?: string;
+  editedLocally?: boolean;
   source?: "sample" | "findmi" | "m365";
 }
 
@@ -121,6 +131,8 @@ export interface AppSettings {
 export interface AppState {
   users: DirectoryUser[];
   stores: FindMiStoreRecord[];
+  /** Local edits on top of FindMi sync, keyed by directory user id */
+  findMiOverrides: Record<string, Partial<DirectoryUser>>;
   templates: SignatureTemplate[];
   campaigns: Campaign[];
   settings: AppSettings;

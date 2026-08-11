@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  FINDMI_API_URL,
-  normalizeFindMiRestaurants,
-} from "@/lib/findmi";
+import { FINDMI_API_URL, parseFindMiPayload } from "@/lib/findmi";
 
 export async function GET() {
   try {
     const res = await fetch(FINDMI_API_URL, {
       headers: { Accept: "application/json" },
-      // Always get a fresh-enough copy for signature sync
       next: { revalidate: 60 },
     });
 
@@ -23,14 +19,17 @@ export async function GET() {
     }
 
     const data = await res.json();
-    const stores = normalizeFindMiRestaurants(data.restaurants);
+    const parsed = parseFindMiPayload(data);
 
     return NextResponse.json({
       ok: true,
       source: "https://dossaniparadise.github.io/DPM-FindMi/",
       api: FINDMI_API_URL,
-      count: stores.length,
-      stores,
+      count: parsed.users.length,
+      counts: parsed.counts,
+      stores: parsed.stores,
+      people: parsed.people,
+      users: parsed.users,
     });
   } catch (error) {
     return NextResponse.json(

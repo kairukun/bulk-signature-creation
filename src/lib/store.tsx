@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { createInitialState } from "./demo-data";
-import { findMiStoreToDirectoryUser } from "./findmi";
+import { applyDirectoryOverrides } from "./findmi";
 import type {
   AppSettings,
   AppState,
@@ -21,7 +21,21 @@ import type {
   SignatureTemplate,
 } from "./types";
 
-const STORAGE_KEY = "dpm-email-signatures:v2";
+const STORAGE_KEY = "dpm-email-signatures:v3";
+
+const EDITABLE_OVERRIDE_FIELDS: (keyof DirectoryUser)[] = [
+  "displayName",
+  "jobTitle",
+  "email",
+  "phone",
+  "streetAddress",
+  "cityStateZip",
+  "location",
+  "storeName",
+  "storeNumber",
+  "company",
+  "signatureId",
+];
 
 interface StoreContextValue extends AppState {
   hydrated: boolean;
@@ -32,9 +46,16 @@ interface StoreContextValue extends AppState {
   upsertCampaign: (campaign: Campaign) => void;
   deleteCampaign: (id: string) => void;
   updateUser: (user: DirectoryUser) => void;
+  clearFindMiOverrides: (userId: string) => void;
   syncDirectory: () => void;
-  syncFindMiStores: () => Promise<{ count: number }>;
-  applyFindMiStores: (stores: FindMiStoreRecord[]) => void;
+  syncFindMiStores: () => Promise<{
+    count: number;
+    counts: Record<string, number>;
+  }>;
+  applyFindMiSync: (payload: {
+    stores: FindMiStoreRecord[];
+    users: DirectoryUser[];
+  }) => void;
   markDeployed: () => void;
   recordCampaignView: (id: string) => void;
   recordCampaignClick: (id: string) => void;
@@ -57,6 +78,7 @@ function loadState(): AppState {
       ...base,
       ...parsed,
       stores: parsed.stores ?? [],
+      findMiOverrides: parsed.findMiOverrides ?? {},
       settings: {
         ...base.settings,
         ...parsed.settings,
@@ -135,49 +157,92 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateUser = useCallback((user: DirectoryUser) => {
-    setState((s) => ({
-      ...s,
-      users: s.users.map((u) => (u.id === user.id ? user : u)),
-    }));
-  }, []);
-
-  const applyFindMiStores = useCallback((stores: FindMiStoreRecord[]) => {
     setState((s) => {
-      const defaultSig =
-        s.templates.find((t) => t.id === "t-dossani")?.id ||
-        s.templates[0]?.id ||
-        "t-dossani";
+      const previous = s.users.find((u) => u.id === user.id);
+      const nextUsers = s.users.map((u) => (u.id === user.id ? user : u));
 
-      const previousByStoreId = new Map(
-        s.users
-          .filter((u) => u.storeId)
-          .map((u) => [u.storeId as string, u] as const),
-      );
+      if (!previous || previous.source !== "findmi") {
+        return { ...s, users: nextUsers };
+      }
 
-      const storeUsers = stores.map((store) => {
-        const mapped = findMiStoreToDirectoryUser(store, defaultSig);
-        const prev = previousByStoreId.get(store.id);
-        if (prev?.signatureId) {
-          return { ...mapped, signatureId: prev.signatureId };
+      const patch: Partial<DirectoryUser> = {
+        ...(s.findMiOverrides[user.id] || {}),
+      };
+      for (const key of EDITABLE_OVERRIDE_FIELDS) {
+        const value = user[key];
+        if (value !== previous[key]) {
+          (patch as Record<string, unknown>)[key] = value;
         }
-        return mapped;
-      });
-
-      const nonStoreUsers = s.users.filter((u) => u.source !== "findmi");
+      }
 
       return {
         ...s,
-        stores,
-        users: [...storeUsers, ...nonStoreUsers],
-        settings: {
-          ...s.settings,
-          findMiConnected: true,
-          lastFindMiSyncAt: new Date().toISOString(),
-          lastSyncAt: new Date().toISOString(),
+        users: nextUsers.map((u) =>
+          u.id === user.id ? { ...u, editedLocally: true } : u,
+        ),
+        findMiOverrides: {
+          ...s.findMiOverrides,
+          [user.id]: patch,
         },
       };
     });
   }, []);
+
+  const clearFindMiOverrides = useCallback((userId: string) => {
+    setState((s) => {
+      const { [userId]: _removed, ...rest } = s.findMiOverrides;
+      return {
+        ...s,
+        findMiOverrides: rest,
+        users: s.users.map((u) =>
+          u.id === userId ? { ...u, editedLocally: false } : u,
+        ),
+      };
+    });
+  }, []);
+
+  const applyFindMiSync = useCallback(
+    (payload: { stores: FindMiStoreRecord[]; users: DirectoryUser[] }) => {
+      setState((s) => {
+        const defaultSig =
+          s.templates.find((t) => t.id === "t-dossani")?.id ||
+          s.templates[0]?.id ||
+          "t-dossani";
+
+        const previousById = new Map(s.users.map((u) => [u.id, u] as const));
+
+        const synced = payload.users.map((mapped) => {
+          const withSig = {
+            ...mapped,
+            signatureId:
+              previousById.get(mapped.id)?.signatureId ||
+              mapped.signatureId ||
+              defaultSig,
+          };
+          return withSig;
+        });
+
+        const withOverrides = applyDirectoryOverrides(
+          synced,
+          s.findMiOverrides,
+        );
+        const nonFindMi = s.users.filter((u) => u.source !== "findmi");
+
+        return {
+          ...s,
+          stores: payload.stores,
+          users: [...withOverrides, ...nonFindMi],
+          settings: {
+            ...s.settings,
+            findMiConnected: true,
+            lastFindMiSyncAt: new Date().toISOString(),
+            lastSyncAt: new Date().toISOString(),
+          },
+        };
+      });
+    },
+    [],
+  );
 
   const syncFindMiStores = useCallback(async () => {
     const res = await fetch("/api/findmi/stores");
@@ -185,9 +250,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!res.ok) {
       throw new Error(data.error || "FindMi sync failed");
     }
-    applyFindMiStores(data.stores as FindMiStoreRecord[]);
-    return { count: data.count as number };
-  }, [applyFindMiStores]);
+    applyFindMiSync({
+      stores: data.stores as FindMiStoreRecord[],
+      users: data.users as DirectoryUser[],
+    });
+    return {
+      count: data.count as number,
+      counts: (data.counts || {}) as Record<string, number>,
+    };
+  }, [applyFindMiSync]);
 
   const syncDirectory = useCallback(() => {
     void syncFindMiStores();
@@ -241,9 +312,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       upsertCampaign,
       deleteCampaign,
       updateUser,
+      clearFindMiOverrides,
       syncDirectory,
       syncFindMiStores,
-      applyFindMiStores,
+      applyFindMiSync,
       markDeployed,
       recordCampaignView,
       recordCampaignClick,
@@ -262,9 +334,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       upsertCampaign,
       deleteCampaign,
       updateUser,
+      clearFindMiOverrides,
       syncDirectory,
       syncFindMiStores,
-      applyFindMiStores,
+      applyFindMiSync,
       markDeployed,
       recordCampaignView,
       recordCampaignClick,

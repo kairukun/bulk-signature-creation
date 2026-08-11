@@ -173,6 +173,7 @@ export function createInitialState(): AppState {
   return {
     users: DEMO_USERS.map((u) => ({ ...u, source: "sample" as const })),
     stores: [],
+    findMiOverrides: {},
     templates: DEMO_TEMPLATES,
     campaigns: DEMO_CAMPAIGNS,
     settings: {

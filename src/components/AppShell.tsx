@@ -9,7 +9,7 @@ import type { Role } from "@/lib/types";
 const NAV = [
   { href: "/app", label: "Overview" },
   { href: "/app/signatures", label: "Signatures" },
-  { href: "/app/users", label: "FindMi stores" },
+  { href: "/app/users", label: "FindMi directory" },
   { href: "/app/campaigns", label: "Banners" },
   { href: "/app/deploy", label: "Deploy to M365" },
   { href: "/app/settings", label: "M365 setup" },

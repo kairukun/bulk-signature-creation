@@ -64,17 +64,17 @@ export default function DashboardPage() {
           </Link>
         </article>
         <article className="panel-card">
-          <h3>2. FindMi stores</h3>
+          <h3>2. FindMi directory</h3>
           <p style={{ marginTop: "0.5rem" }}>
-            Sync store name, address, phone, and email from FindMi for each store
-            mailbox signature.
+            Sync and edit stores, VPs, directors, district managers, and repair
+            techs from FindMi for signature fields.
           </p>
           <Link
             href="/app/users"
             className="btn btn-secondary"
             style={{ marginTop: "1rem" }}
           >
-            Open FindMi stores
+            Open FindMi directory
           </Link>
         </article>
         <article className="panel-card">

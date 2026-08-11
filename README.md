@@ -30,16 +30,17 @@ AZURE_AD_CLIENT_SECRET=
 NEXT_PUBLIC_APP_URL=
 ```
 
-## FindMi store sync
+## FindMi directory sync
 
-Store mailbox fields come from [DPM FindMi](https://dossaniparadise.github.io/DPM-FindMi/):
+Pulls from [DPM FindMi](https://dossaniparadise.github.io/DPM-FindMi/):
 
-- Store name
-- Address
-- Phone
-- Email
+- Stores (name, address, phone, email)
+- VP of Operations
+- Directors of Operations
+- District Managers (area coaches)
+- Repair Technicians
 
-In the app, open **FindMi stores** → **Sync from FindMi**. Data is read from the shared alignment API (`restaurants` records).
+Open **FindMi directory** → **Sync from FindMi**. You can edit any synced record locally; those edits are kept on the next sync. Use **Reset from FindMi** on a record to discard local changes.
 
 Optional override:
 
