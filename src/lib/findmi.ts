@@ -3,6 +3,7 @@ import {
   departmentForFindMiRole,
   mapFindMiDepartment,
 } from "./departments";
+import { formatPhoneNumber } from "./phone";
 import type { Department, DirectoryUser, FindMiRole } from "./types";
 
 /** Live FindMi / alignment API used by https://dossaniparadise.github.io/DPM-FindMi/ */
@@ -21,6 +22,8 @@ export interface FindMiStore {
   email: string;
   phone: string;
   storeManager: string;
+  /** Assistant / AGM — used when storeManager is empty. */
+  assistantManager: string;
   entity: string;
   division: string;
 }
@@ -44,6 +47,7 @@ type RawRestaurant = {
   email?: string;
   phone?: string;
   storeManager?: string;
+  assistantManager?: string;
   entity?: string;
   division?: string;
 };
@@ -161,6 +165,14 @@ export function parseFindMiAddress(address: string): {
 
 export { mapFindMiDepartment, departmentForFindMiRole } from "./departments";
 
+/** Normalize FindMi store numbers like "#02479" → "2479" (no hash / leading zeros). */
+export function normalizeStoreNumber(raw: string): string {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  const trimmed = digits.replace(/^0+/, "");
+  return trimmed || digits;
+}
+
 export function normalizeFindMiStore(
   id: string,
   raw: RawRestaurant,
@@ -170,13 +182,14 @@ export function normalizeFindMiStore(
   return {
     id,
     storeName: String(raw.storeName || "").trim(),
-    storeNumber: String(raw.storeNumber || "").trim(),
+    storeNumber: normalizeStoreNumber(String(raw.storeNumber || "")),
     address,
     streetAddress,
     cityStateZip,
     email: String(raw.email || "").trim(),
-    phone: String(raw.phone || "").trim(),
+    phone: formatPhoneNumber(String(raw.phone || "").trim()),
     storeManager: String(raw.storeManager || "").trim(),
+    assistantManager: String(raw.assistantManager || "").trim(),
     entity: String(raw.entity || "").trim(),
     division: String(raw.division || "").trim(),
   };
@@ -236,7 +249,7 @@ function normalizePersonEntry(
     id,
     name,
     email,
-    phone: String(raw.phone || raw.replyNumber || "").trim(),
+    phone: formatPhoneNumber(String(raw.phone || raw.replyNumber || "").trim()),
     jobTitle: personJobTitle(raw, role),
     department: String(raw.department || "").trim(),
     role,
@@ -363,12 +376,14 @@ export function findMiStoreToDirectoryUser(
   store: FindMiStore,
   signatureId = "t-dossani",
 ): DirectoryUser {
+  const manager = store.storeManager.trim();
+  const agm = store.assistantManager.trim();
   const displayName =
-    store.storeManager || store.storeName || store.storeNumber || "Store";
-  const jobTitle = store.storeManager
+    manager || agm || store.storeName || store.storeNumber || "Store";
+  const jobTitle = manager
     ? "Store Manager"
-    : store.storeNumber
-      ? `Store ${store.storeNumber}`
+    : agm
+      ? "Assistant Store Manager"
       : "Store";
 
   return {
@@ -377,7 +392,7 @@ export function findMiStoreToDirectoryUser(
     email: store.email,
     jobTitle,
     department: departmentForFindMiRole("store"),
-    phone: store.phone,
+    phone: formatPhoneNumber(store.phone),
     company: store.entity || COMPANY_NAME,
     website: COMPANY_WEBSITE,
     streetAddress: store.streetAddress || store.address,
@@ -387,7 +402,7 @@ export function findMiStoreToDirectoryUser(
     groups: [
       "FindMi Store",
       store.division ? `Division:${store.division}` : "",
-      store.storeNumber,
+      store.storeNumber ? `Store ${store.storeNumber}` : "",
     ].filter(Boolean),
     storeId: store.id,
     storeName: store.storeName,
@@ -417,7 +432,7 @@ export function findMiPersonToDirectoryUser(
     email: person.email,
     jobTitle,
     department,
-    phone: person.phone,
+    phone: formatPhoneNumber(person.phone),
     company: COMPANY_NAME,
     website: COMPANY_WEBSITE,
     streetAddress: "",

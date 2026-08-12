@@ -5,6 +5,7 @@ import {
   signatureFontScale,
   unshout,
 } from "./fonts";
+import { formatPhoneNumber } from "./phone";
 import type { Campaign, DirectoryUser, SignatureTemplate } from "./types";
 
 function escapeHtml(value: string): string {
@@ -161,6 +162,8 @@ export function renderSignatureHtml(options: {
   const displayName = unshout(user.displayName);
   const jobTitle = unshout(user.jobTitle);
   const storeName = user.storeName ? unshout(user.storeName) : "";
+  const phone = formatPhoneNumber(user.phone);
+  const mobile = user.mobile ? formatPhoneNumber(user.mobile) : "";
 
   const photoCell = template.showPhoto
     ? `<td style="padding-right:14px;vertical-align:top;">
@@ -208,10 +211,8 @@ export function renderSignatureHtml(options: {
     const webHref = websiteHref(user.website || template.websiteDisplay || web);
     const storeLine =
       storeName && storeName.toLowerCase() !== displayName.toLowerCase()
-        ? `${storeName}${user.storeNumber ? ` (${user.storeNumber})` : ""}`
-        : user.storeNumber
-          ? user.storeNumber
-          : "";
+        ? storeName
+        : "";
 
     return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:${escapeHtml(color)};max-width:560px;">
       ${
@@ -229,7 +230,7 @@ export function renderSignatureHtml(options: {
       <tr><td>${logoHtml}</td></tr>
       ${street ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(street)}</td></tr>` : ""}
       ${cityStateZip ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(cityStateZip)}</td></tr>` : ""}
-      ${user.phone ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(user.phone)}</td></tr>` : ""}
+      ${phone ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(phone)}</td></tr>` : ""}
       <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">
         Email: <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(user.email)}</a>
       </td></tr>
@@ -250,7 +251,7 @@ export function renderSignatureHtml(options: {
       <tr>
         <td colspan="3" style="padding-top:4px;font:${sizes.body}px ${escapeHtml(font)};">
           <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a>
-          ${user.phone ? ` · ${escapeHtml(user.phone)}` : ""}
+          ${phone ? ` · ${escapeHtml(phone)}` : ""}
         </td>
       </tr>
       ${cta}${banner}${disclaimer}
@@ -263,7 +264,7 @@ export function renderSignatureHtml(options: {
       <tr><td style="padding-top:8px;font:700 ${sizes.name}px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td></tr>
       <tr><td style="font:${sizes.title}px ${escapeHtml(font)};color:#4b5563;">${escapeHtml(jobTitle)} · ${text(user.department)}</td></tr>
       <tr><td style="padding-top:6px;font:${sizes.body}px ${escapeHtml(font)};"><a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a></td></tr>
-      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:#374151;">${escapeHtml(user.phone)}${user.location ? ` · ${text(user.location)}` : ""}</td></tr>
+      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:#374151;">${escapeHtml(phone)}${user.location ? ` · ${text(user.location)}` : ""}</td></tr>
       ${social}${cta}${banner}${disclaimer}
     </table>`;
   }
@@ -278,7 +279,7 @@ export function renderSignatureHtml(options: {
           <div style="font:${sizes.body}px ${escapeHtml(font)};color:#6b7280;margin-top:2px;">${text(user.company)} · ${text(user.department)}</div>
           <div style="margin-top:8px;font:${sizes.body}px ${escapeHtml(font)};">
             <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a><br/>
-            ${escapeHtml(user.phone)}${user.mobile ? `<br/>${escapeHtml(user.mobile)}` : ""}
+            ${escapeHtml(phone)}${mobile ? `<br/>${escapeHtml(mobile)}` : ""}
           </div>
         </td>
       </tr>
@@ -302,7 +303,7 @@ export function renderSignatureHtml(options: {
           <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:#6b7280;">${text(user.company)} | ${text(user.department)}</td></tr>
           <tr><td style="padding-top:8px;font:${sizes.body}px ${escapeHtml(font)};">
             <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(accent)};text-decoration:none;">${escapeHtml(user.email)}</a>
-            ${user.phone ? `<span style="color:#9ca3af;"> · </span>${escapeHtml(user.phone)}` : ""}
+            ${phone ? `<span style="color:#9ca3af;"> · </span>${escapeHtml(phone)}` : ""}
           </td></tr>
           ${user.location ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:#6b7280;">${text(user.location)}</td></tr>` : ""}
           ${social}${cta}${banner}${disclaimer}

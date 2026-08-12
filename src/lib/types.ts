@@ -66,6 +66,7 @@ export interface FindMiStoreRecord {
   email: string;
   phone: string;
   storeManager: string;
+  assistantManager?: string;
   entity: string;
   division: string;
 }
