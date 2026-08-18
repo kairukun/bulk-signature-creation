@@ -2,15 +2,23 @@
 
 Internal Microsoft 365 email signature tool for **Dossani Paradise Management** only.
 
-This is not a multi-tenant or commercial product. It exists so DPM IT/ops can:
+This is not a multi-tenant or commercial product. It exists so DPM staff can:
 
-1. Maintain the corporate signature (logo, disclaimer, layout)
-2. Pull staff details from Microsoft 365 / FindMi-style fields
-3. Deploy consistent signatures to the company tenant
+1. Build a corporate Outlook signature from FindMi (or by typing details) at `/signature`
+2. Copy/paste that signature into Outlook with a step-by-step guide
+3. Let IT optionally still manage templates and M365 transport-rule deploy at `/app`
 
-## Access
+## Employee signature page (public)
 
-The site requires sign-in. Set on the host (Vercel):
+Anyone can open **[/signature](/signature)** (the site home redirects there). No login.
+
+- Search the live FindMi directory and pick your entry
+- Or type name, title, email, phone, and address
+- Copy the formatted signature, then follow the Outlook Windows / web / Mac steps on the page
+
+## IT access
+
+The admin tool at `/app` requires sign-in. Set on the host (Vercel):
 
 ```env
 AUTH_EMAIL=kyle@dossaniparadise.com,ITSupport@dossaniparadise.com
@@ -20,7 +28,7 @@ AUTH_SECRET=
 
 `AUTH_EMAIL` accepts a comma-separated allowlist; all listed users share `AUTH_PASSWORD`.
 
-Unauthenticated visitors are redirected to `/login`. Email click-tracking (`/api/track/*`) stays public.
+Unauthenticated visitors can use `/signature`. The admin app (`/app`) redirects to `/login`. Email click-tracking (`/api/track/*`) stays public.
 
 ## Shared workspace
 
@@ -93,6 +101,7 @@ FINDMI_API_URL=https://alignment-api-khaki.vercel.app/api/dpm-alignment
 
 | Route | Purpose |
 |-------|---------|
+| `/signature` | Employee signature builder (public) |
 | `/app` | Overview |
 | `/app/signatures` | Corporate template + logo |
 | `/app/users` | People / assignments |

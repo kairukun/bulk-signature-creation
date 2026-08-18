@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Internal tool — no public marketing site. */
+/** Public employee signature studio. Admin tool lives at /app. */
 export default function HomePage() {
-  redirect("/app");
+  redirect("/signature");
 }
