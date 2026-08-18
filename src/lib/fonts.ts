@@ -57,8 +57,8 @@ export const DEFAULT_SIGNATURE_FONT = SIGNATURE_FONTS[1].value;
 /** Default body text size for signatures (px). */
 export const DEFAULT_SIGNATURE_FONT_SIZE = 12;
 
-/** Default logo display width (px) — full DPM wordmark. */
-export const DEFAULT_LOGO_WIDTH = 220;
+/** Default logo display width (px) — saved DPM wordmark. */
+export const DEFAULT_LOGO_WIDTH = 175;
 
 export function resolveFontSize(fontSize: number | undefined | null): number {
   const n = Number(fontSize);
@@ -77,10 +77,10 @@ export function signatureFontScale(fontSize: number | undefined | null) {
   const body = resolveFontSize(fontSize);
   return {
     body,
-    name: body,
-    thankYou: body,
-    title: body,
-    company: body,
+    name: body + 4,
+    thankYou: body + 3,
+    title: body + 1,
+    company: body + 2,
     companySecondary: body,
     disclaimer: Math.max(8, body - 3),
     cta: body,

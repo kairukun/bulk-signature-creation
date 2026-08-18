@@ -8,7 +8,7 @@ import { DEMO_TEMPLATES } from "@/lib/demo-data";
 import { FINDMI_ROLE_LABELS } from "@/lib/findmi";
 import { formatPhoneNumber } from "@/lib/phone";
 import { renderSignatureHtml } from "@/lib/render-signature";
-import type { DirectoryUser, FindMiRole } from "@/lib/types";
+import type { DirectoryUser, FindMiRole, SignatureTemplate } from "@/lib/types";
 import "./studio.css";
 
 const display = Cinzel({
@@ -109,7 +109,7 @@ function haystack(entry: DirectoryEntry): string {
 }
 
 export function SignatureStudio() {
-  const template = DEMO_TEMPLATES[0];
+  const [template, setTemplate] = useState<SignatureTemplate>(DEMO_TEMPLATES[0]);
   const [mode, setMode] = useState<"findmi" | "manual">("findmi");
   const [query, setQuery] = useState("");
   const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
@@ -127,14 +127,26 @@ export function SignatureStudio() {
       setLoading(true);
       setLoadError("");
       try {
-        const res = await fetch(`/api/findmi/directory?ts=${Date.now()}`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
+        const stamp = Date.now();
+        const [dirRes, templateRes] = await Promise.all([
+          fetch(`/api/findmi/directory?ts=${stamp}`, { cache: "no-store" }),
+          fetch(`/api/signature/template?ts=${stamp}`, { cache: "no-store" }),
+        ]);
+        const data = await dirRes.json();
+        if (!dirRes.ok || !data.ok) {
           throw new Error(data.error || "Could not load FindMi directory");
         }
         if (!cancelled) setDirectory(data.users as DirectoryEntry[]);
+
+        const templateData = await templateRes.json().catch(() => null);
+        if (
+          !cancelled &&
+          templateRes.ok &&
+          templateData?.ok &&
+          templateData.template
+        ) {
+          setTemplate(templateData.template as SignatureTemplate);
+        }
       } catch (error) {
         if (!cancelled) {
           setLoadError(

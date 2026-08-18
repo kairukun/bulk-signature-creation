@@ -1,4 +1,4 @@
-import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED } from "./constants";
+import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED, BRAND_WORDMARK_RED } from "./constants";
 import { DEFAULT_SIGNATURE_FONT } from "./fonts";
 import type { AppState, Campaign, DirectoryUser, SignatureTemplate } from "./types";
 
@@ -37,10 +37,10 @@ export const DEMO_TEMPLATES: SignatureTemplate[] = [
     showThankYou: true,
     logoUrl: DEFAULT_LOGO_PATH,
     logoAlt: "Dossani Paradise Management",
-    logoWidth: 220,
+    logoWidth: 175,
     companyNameLine1: "",
     companyNameLine2: "",
-    companyNameLine2Color: BRAND_RED,
+    companyNameLine2Color: BRAND_WORDMARK_RED,
     ctaLabel: "",
     ctaUrl: "",
     websiteDisplay: "www.DossaniParadise.com",

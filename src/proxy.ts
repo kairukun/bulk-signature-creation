@@ -7,6 +7,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === "/login") return true;
   if (pathname === "/api/auth/login") return true;
   if (pathname === "/api/findmi/directory") return true;
+  if (pathname === "/api/signature/template") return true;
   if (pathname.startsWith("/api/track/")) return true;
   return false;
 }

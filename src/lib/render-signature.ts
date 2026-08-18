@@ -1,4 +1,4 @@
-﻿import { DEFAULT_LOGO_PATH, BRAND_NAVY, BRAND_RED, SIGNATURE_INK, SIGNATURE_LINK, COMPANY_CITY_STATE_ZIP, COMPANY_STREET } from "./constants";
+﻿import { DEFAULT_LOGO_PATH, BRAND_NAVY, BRAND_RED, COMPANY_CITY_STATE_ZIP, COMPANY_STREET } from "./constants";
 import {
   DEFAULT_SIGNATURE_FONT,
   resolveLogoWidth,
@@ -86,6 +86,7 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
   const line1Color = template.primaryColor || BRAND_NAVY;
   const line2Color = template.companyNameLine2Color || template.accentColor || BRAND_RED;
   const font = template.fontFamily || DEFAULT_SIGNATURE_FONT;
+  const color = template.primaryColor || BRAND_NAVY;
   const sizes = signatureFontScale(template.fontSize);
 
   const image = src
@@ -95,15 +96,15 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
   const nameCell =
     line1 || line2
       ? `
-    <td style="vertical-align:middle;padding-left:${image ? "8px" : "0"};">
+    <td style="vertical-align:middle;padding-left:${image ? "10px" : "0"};">
       ${
         line1
-          ? `<div style="font:700 ${sizes.company}px ${escapeHtml(font)};color:${escapeHtml(line1Color)};line-height:1.15;letter-spacing:0.04em;">${escapeHtml(line1)}</div>`
+          ? `<div style="font:700 ${sizes.company}px ${escapeHtml(font)};color:${escapeHtml(line1Color || color)};line-height:1.2;">${escapeHtml(line1)}</div>`
           : ""
       }
       ${
         line2
-          ? `<div style="font:700 ${sizes.companySecondary}px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.15;letter-spacing:0.12em;${line1 ? "margin-top:1px;" : ""}">${escapeHtml(line2)}</div>`
+          ? `<div style="font:700 ${sizes.companySecondary}px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.2;${line1 ? "margin-top:2px;" : ""}">${escapeHtml(line2)}</div>`
           : ""
       }
     </td>`
@@ -200,30 +201,40 @@ export function renderSignatureHtml(options: {
       : "";
 
   const disclaimer = template.disclaimer
-    ? `<tr><td style="padding-top:12px;font:${sizes.disclaimer}px ${escapeHtml(font)};color:${SIGNATURE_INK};max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
+    ? `<tr><td style="padding-top:12px;font:${sizes.disclaimer}px ${escapeHtml(font)};color:#333333;max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
     : "";
 
   if (template.layout === "corporate") {
     const web = websiteLabel(template, user);
     const webHref = websiteHref(user.website || template.websiteDisplay || web);
+    const storeName = user.storeName ? unshout(user.storeName) : "";
+    const storeLine =
+      storeName && storeName.toLowerCase() !== displayName.toLowerCase()
+        ? storeName
+        : "";
 
-    return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};font-size:${sizes.body}px;color:${SIGNATURE_INK};max-width:560px;">
+    return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:${escapeHtml(font)};color:${escapeHtml(color)};max-width:560px;">
       ${
         template.showThankYou !== false
-          ? `<tr><td style="font:${sizes.thankYou}px ${escapeHtml(font)};color:${SIGNATURE_INK};padding-bottom:4px;">Thank You,</td></tr>`
+          ? `<tr><td style="font:700 ${sizes.thankYou}px ${escapeHtml(font)};color:${escapeHtml(color)};padding-bottom:8px;">Thank You,</td></tr>`
           : ""
       }
-      <tr><td style="font:700 ${sizes.name}px ${escapeHtml(font)};color:${BRAND_NAVY};">${escapeHtml(displayName)}</td></tr>
-      <tr><td style="font:italic ${sizes.title}px ${escapeHtml(font)};color:${SIGNATURE_INK};padding-top:1px;">${escapeHtml(jobTitle)}</td></tr>
+      <tr><td style="font:700 ${sizes.name}px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(displayName)}</td></tr>
+      <tr><td style="font:italic ${sizes.title}px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(jobTitle)}</td></tr>
+      ${
+        storeLine
+          ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">${escapeHtml(storeLine)}</td></tr>`
+          : ""
+      }
       <tr><td>${logoHtml}</td></tr>
-      ${street ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">${text(street)}</td></tr>` : ""}
-      ${cityStateZip ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">${text(cityStateZip)}</td></tr>` : ""}
-      ${phone ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">Office: ${escapeHtml(phone)}</td></tr>` : ""}
-      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">
-        Email: <a href="mailto:${escapeHtml(user.email)}" style="color:${SIGNATURE_LINK};text-decoration:underline;">${escapeHtml(user.email)}</a>
+      ${street ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(street)}</td></tr>` : ""}
+      ${cityStateZip ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${text(cityStateZip)}</td></tr>` : ""}
+      ${phone ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">${escapeHtml(phone)}</td></tr>` : ""}
+      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};padding-top:2px;">
+        Email: <a href="mailto:${escapeHtml(user.email)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(user.email)}</a>
       </td></tr>
-      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">
-        Website: <a href="${escapeHtml(webHref)}" style="color:${SIGNATURE_LINK};text-decoration:underline;">${escapeHtml(web)}</a>
+      <tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${escapeHtml(color)};">
+        Website: <a href="${escapeHtml(webHref)}" style="color:${escapeHtml(color)};text-decoration:underline;">${escapeHtml(web)}</a>
       </td></tr>
       ${cta}${banner}${disclaimer}
     </table>`;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
-import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED } from "@/lib/constants";
+import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED, BRAND_WORDMARK_RED } from "@/lib/constants";
 import {
   DEFAULT_LOGO_WIDTH,
   DEFAULT_SIGNATURE_FONT,
@@ -46,7 +46,7 @@ function blankTemplate(): SignatureTemplate {
     logoWidth: DEFAULT_LOGO_WIDTH,
     companyNameLine1: "",
     companyNameLine2: "",
-    companyNameLine2Color: BRAND_RED,
+    companyNameLine2Color: BRAND_WORDMARK_RED,
     ctaLabel: "",
     ctaUrl: "",
     websiteDisplay: COMPANY_WEBSITE_DISPLAY,
