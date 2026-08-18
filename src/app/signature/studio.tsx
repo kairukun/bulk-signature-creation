@@ -3,7 +3,7 @@
 import { Cinzel, Source_Sans_3 } from "next/font/google";
 import { useEffect, useMemo, useState } from "react";
 import { copySignatureHtml } from "@/lib/copy-signature";
-import { COMPANY_NAME, COMPANY_WEBSITE } from "@/lib/constants";
+import { COMPANY_CITY_STATE_ZIP, COMPANY_NAME, COMPANY_STREET, COMPANY_WEBSITE } from "@/lib/constants";
 import { DEMO_TEMPLATES } from "@/lib/demo-data";
 import { FINDMI_ROLE_LABELS } from "@/lib/findmi";
 import { formatPhoneNumber } from "@/lib/phone";
@@ -56,8 +56,8 @@ const EMPTY: Draft = {
   jobTitle: "",
   email: "",
   phone: "",
-  streetAddress: "",
-  cityStateZip: "",
+  streetAddress: COMPANY_STREET,
+  cityStateZip: COMPANY_CITY_STATE_ZIP,
   storeName: "",
   website: "www.DossaniParadise.com",
 };
@@ -68,8 +68,8 @@ function entryToDraft(entry: DirectoryEntry): Draft {
     jobTitle: entry.jobTitle,
     email: entry.email,
     phone: entry.phone,
-    streetAddress: entry.streetAddress,
-    cityStateZip: entry.cityStateZip || entry.location,
+    streetAddress: entry.streetAddress || COMPANY_STREET,
+    cityStateZip: entry.cityStateZip || entry.location || COMPANY_CITY_STATE_ZIP,
     storeName: entry.storeName,
     website: entry.website || "www.DossaniParadise.com",
   };

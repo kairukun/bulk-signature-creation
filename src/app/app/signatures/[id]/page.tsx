@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { SignaturePreview } from "@/components/SignaturePreview";
-import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "@/lib/constants";
+import { COMPANY_NAME, COMPANY_WEBSITE_DISPLAY, DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED } from "@/lib/constants";
 import {
   DEFAULT_LOGO_WIDTH,
   DEFAULT_SIGNATURE_FONT,
@@ -33,8 +33,8 @@ function blankTemplate(): SignatureTemplate {
     name: "Corporate signature",
     description: `Standard ${COMPANY_NAME} email signature`,
     layout: "corporate",
-    primaryColor: "#1F4E79",
-    accentColor: "#C0392B",
+    primaryColor: BRAND_NAVY,
+    accentColor: BRAND_RED,
     fontFamily: DEFAULT_SIGNATURE_FONT,
     fontSize: DEFAULT_SIGNATURE_FONT_SIZE,
     showPhoto: false,
@@ -44,9 +44,9 @@ function blankTemplate(): SignatureTemplate {
     logoUrl: DEFAULT_LOGO_PATH,
     logoAlt: COMPANY_NAME,
     logoWidth: DEFAULT_LOGO_WIDTH,
-    companyNameLine1: "Dossani Paradise",
-    companyNameLine2: "Management",
-    companyNameLine2Color: "#C0392B",
+    companyNameLine1: "DOSSANI PARADISE",
+    companyNameLine2: "MANAGEMENT",
+    companyNameLine2Color: BRAND_RED,
     ctaLabel: "",
     ctaUrl: "",
     websiteDisplay: COMPANY_WEBSITE_DISPLAY,

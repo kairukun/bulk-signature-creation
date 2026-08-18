@@ -52,13 +52,13 @@ export const SIGNATURE_FONTS = [
   },
 ] as const;
 
-export const DEFAULT_SIGNATURE_FONT = SIGNATURE_FONTS[0].value;
+export const DEFAULT_SIGNATURE_FONT = SIGNATURE_FONTS[1].value;
 
 /** Default body text size for signatures (px). */
 export const DEFAULT_SIGNATURE_FONT_SIZE = 12;
 
 /** Default logo display width (px). */
-export const DEFAULT_LOGO_WIDTH = 96;
+export const DEFAULT_LOGO_WIDTH = 48;
 
 export function resolveFontSize(fontSize: number | undefined | null): number {
   const n = Number(fontSize);
@@ -77,10 +77,10 @@ export function signatureFontScale(fontSize: number | undefined | null) {
   const body = resolveFontSize(fontSize);
   return {
     body,
-    name: body + 4,
-    thankYou: body + 3,
-    title: body + 1,
-    company: body + 2,
+    name: body,
+    thankYou: body,
+    title: body,
+    company: body,
     companySecondary: body,
     disclaimer: Math.max(8, body - 3),
     cta: body,

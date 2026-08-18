@@ -1,4 +1,5 @@
-import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER } from "./constants";
+import { DEFAULT_LOGO_PATH, DOSSANI_DISCLAIMER, BRAND_NAVY, BRAND_RED } from "./constants";
+import { DEFAULT_SIGNATURE_FONT } from "./fonts";
 import type { AppState, Campaign, DirectoryUser, SignatureTemplate } from "./types";
 
 /** Placeholder recipient used only by server HTML preview helpers. */
@@ -26,9 +27,9 @@ export const DEMO_TEMPLATES: SignatureTemplate[] = [
     description:
       "Company-wide signature with logo, FindMi-style address fields, and legal disclaimer.",
     layout: "corporate",
-    primaryColor: "#1F4E79",
-    accentColor: "#C0392B",
-    fontFamily: "Georgia, 'Times New Roman', Times, serif",
+    primaryColor: BRAND_NAVY,
+    accentColor: BRAND_RED,
+    fontFamily: DEFAULT_SIGNATURE_FONT,
     fontSize: 12,
     showPhoto: false,
     showLogo: true,
@@ -36,10 +37,10 @@ export const DEMO_TEMPLATES: SignatureTemplate[] = [
     showThankYou: true,
     logoUrl: DEFAULT_LOGO_PATH,
     logoAlt: "Dossani Paradise Management",
-    logoWidth: 96,
-    companyNameLine1: "Dossani Paradise",
-    companyNameLine2: "Management",
-    companyNameLine2Color: "#C0392B",
+    logoWidth: 48,
+    companyNameLine1: "DOSSANI PARADISE",
+    companyNameLine2: "MANAGEMENT",
+    companyNameLine2Color: BRAND_RED,
     ctaLabel: "",
     ctaUrl: "",
     websiteDisplay: "www.DossaniParadise.com",
