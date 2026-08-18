@@ -231,13 +231,7 @@ export function SignatureStudio() {
         </header>
 
         <section className="dpm-hero">
-          <p className="dpm-kicker">Employee signature studio</p>
-          <h1>Your name. Your Outlook.</h1>
-          <p>
-            Pick yourself from FindMi or type your details, copy the corporate
-            signature, then paste it into Outlook. Nothing is pushed to
-            Microsoft 365 from this page.
-          </p>
+          <h1>Dossani Signature Creator</h1>
         </section>
 
         <div className="dpm-board">
@@ -486,12 +480,76 @@ export function SignatureStudio() {
                   </li>
                 </ol>
               </details>
+              <details className="dpm-step">
+                <summary>iPhone or iPad</summary>
+                <ol>
+                  <li>Tap <strong>Copy signature</strong> above.</li>
+                  <li>
+                    Open <strong>Safari</strong> and go to{" "}
+                    <a href="https://outlook.office.com" target="_blank" rel="noreferrer">
+                      outlook.office.com
+                    </a>
+                    , then sign in.
+                  </li>
+                  <li>
+                    Tap your profile picture, then{" "}
+                    <strong>View all Outlook settings</strong>.
+                  </li>
+                  <li>
+                    Go to <strong>Mail → Compose and reply</strong>.
+                  </li>
+                  <li>
+                    Tap in the signature box, tap and hold, then tap{" "}
+                    <strong>Paste</strong>. The logo and formatting should appear.
+                  </li>
+                  <li>
+                    Turn the signature on for new messages and replies, then tap{" "}
+                    <strong>Save</strong>.
+                  </li>
+                  <li>
+                    The Outlook iPhone app’s own Signature screen is plain text
+                    only and will not keep the logo. Use Outlook on the web
+                    (this path) or a computer for the formatted signature.
+                  </li>
+                </ol>
+              </details>
+              <details className="dpm-step">
+                <summary>Android</summary>
+                <ol>
+                  <li>Tap <strong>Copy signature</strong> above.</li>
+                  <li>
+                    Open <strong>Chrome</strong> and go to{" "}
+                    <a href="https://outlook.office.com" target="_blank" rel="noreferrer">
+                      outlook.office.com
+                    </a>
+                    , then sign in.
+                  </li>
+                  <li>
+                    Tap your profile picture, then{" "}
+                    <strong>View all Outlook settings</strong>.
+                  </li>
+                  <li>
+                    Go to <strong>Mail → Compose and reply</strong>.
+                  </li>
+                  <li>
+                    Tap and hold in the signature box, then tap{" "}
+                    <strong>Paste</strong>. The logo and formatting should appear.
+                  </li>
+                  <li>
+                    Turn the signature on for new messages and replies, then tap{" "}
+                    <strong>Save</strong>.
+                  </li>
+                  <li>
+                    The Outlook Android app’s own Signature screen is plain text
+                    only and will not keep the logo. Use Outlook on the web
+                    (this path) or a computer for the formatted signature.
+                  </li>
+                </ol>
+              </details>
             </div>
           </section>
         </div>
-        <p className="dpm-foot">
-          {COMPANY_NAME} · FindMi-backed · not a Microsoft 365 deploy
-        </p>
+        <p className="dpm-foot">{COMPANY_NAME}</p>
       </div>
     </div>
   );

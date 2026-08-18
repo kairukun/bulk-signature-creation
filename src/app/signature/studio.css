@@ -65,34 +65,24 @@
 }
 
 .dpm-hero {
-  max-width: 36rem;
+  max-width: 40rem;
   margin: 0 0 1.8rem auto;
   text-align: right;
-}
-
-.dpm-kicker {
-  margin: 0 0 0.55rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.34em;
-  text-transform: uppercase;
-  color: var(--red);
 }
 
 .dpm-hero h1 {
   margin: 0;
   font-family: var(--font-studio-display), "Times New Roman", serif;
   font-weight: 600;
-  font-size: clamp(2.1rem, 4.4vw, 3.6rem);
-  letter-spacing: 0.04em;
-  line-height: 0.95;
+  font-size: clamp(1.85rem, 4vw, 3.1rem);
+  letter-spacing: 0.06em;
+  line-height: 1.05;
   text-transform: uppercase;
 }
 
-.dpm-hero p {
-  margin: 0.85rem 0 0;
-  color: var(--mist);
-  font-size: 1.02rem;
-  line-height: 1.55;
+.dpm-step a {
+  color: #fff;
+  text-underline-offset: 2px;
 }
 
 .dpm-board {
