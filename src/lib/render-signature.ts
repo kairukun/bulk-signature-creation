@@ -1,4 +1,4 @@
-﻿import { DEFAULT_LOGO_PATH, BRAND_NAVY, BRAND_RED, SIGNATURE_DISCLAIMER, SIGNATURE_INK, SIGNATURE_LINK, COMPANY_CITY_STATE_ZIP, COMPANY_STREET } from "./constants";
+﻿import { DEFAULT_LOGO_PATH, BRAND_NAVY, BRAND_RED, SIGNATURE_INK, SIGNATURE_LINK, COMPANY_CITY_STATE_ZIP, COMPANY_STREET } from "./constants";
 import {
   DEFAULT_SIGNATURE_FONT,
   resolveLogoWidth,
@@ -98,12 +98,12 @@ function logoBlock(template: SignatureTemplate, origin: string): string {
     <td style="vertical-align:middle;padding-left:${image ? "8px" : "0"};">
       ${
         line1
-          ? `<div style="font:${sizes.company}px ${escapeHtml(font)};color:${escapeHtml(line1Color)};line-height:1.15;letter-spacing:0.04em;">${escapeHtml(line1)}</div>`
+          ? `<div style="font:700 ${sizes.company}px ${escapeHtml(font)};color:${escapeHtml(line1Color)};line-height:1.15;letter-spacing:0.04em;">${escapeHtml(line1)}</div>`
           : ""
       }
       ${
         line2
-          ? `<div style="font:${sizes.companySecondary}px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.15;letter-spacing:0.12em;${line1 ? "margin-top:1px;" : ""}">${escapeHtml(line2)}</div>`
+          ? `<div style="font:700 ${sizes.companySecondary}px ${escapeHtml(font)};color:${escapeHtml(line2Color)};line-height:1.15;letter-spacing:0.12em;${line1 ? "margin-top:1px;" : ""}">${escapeHtml(line2)}</div>`
           : ""
       }
     </td>`
@@ -200,7 +200,7 @@ export function renderSignatureHtml(options: {
       : "";
 
   const disclaimer = template.disclaimer
-    ? `<tr><td style="padding-top:12px;font:${sizes.disclaimer}px ${escapeHtml(font)};color:${SIGNATURE_DISCLAIMER};max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
+    ? `<tr><td style="padding-top:12px;font:${sizes.disclaimer}px ${escapeHtml(font)};color:${SIGNATURE_INK};max-width:520px;line-height:1.35;">${escapeHtml(template.disclaimer)}</td></tr>`
     : "";
 
   if (template.layout === "corporate") {
@@ -213,7 +213,7 @@ export function renderSignatureHtml(options: {
           ? `<tr><td style="font:${sizes.thankYou}px ${escapeHtml(font)};color:${SIGNATURE_INK};padding-bottom:4px;">Thank You,</td></tr>`
           : ""
       }
-      <tr><td style="font:${sizes.name}px ${escapeHtml(font)};color:${SIGNATURE_INK};">${escapeHtml(displayName)}</td></tr>
+      <tr><td style="font:700 ${sizes.name}px ${escapeHtml(font)};color:${BRAND_NAVY};">${escapeHtml(displayName)}</td></tr>
       <tr><td style="font:italic ${sizes.title}px ${escapeHtml(font)};color:${SIGNATURE_INK};padding-top:1px;">${escapeHtml(jobTitle)}</td></tr>
       <tr><td>${logoHtml}</td></tr>
       ${street ? `<tr><td style="font:${sizes.body}px ${escapeHtml(font)};color:${SIGNATURE_INK};">${text(street)}</td></tr>` : ""}

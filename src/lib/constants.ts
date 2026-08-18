@@ -8,9 +8,9 @@ export const COMPANY_STREET = "320 E. Northwest Highway Suite 100";
 export const COMPANY_CITY_STATE_ZIP = "Grapevine, TX, 76051";
 
 export const DOSSANI_DISCLAIMER =
-  'The information contained in this electronic message and any attachments (the "Message") is intended for one or more specific individuals or entities, and may be confidential, privileged, proprietary, or otherwise protected by law. If you are not the intended recipient, please notify the sender immediately, delete the Message, and do not read, copy, distribute, or otherwise use it. Unauthorized use or disclosure may be prohibited.';
+  'The information contained in this electronic message and any attachments (the "Message") is intended for one or more specific individuals or entities, and may be confidential, proprietary, privileged or otherwise protected by law. If you are not the intended recipient, please notify the sender immediately, delete this Message and do not disclose, distribute, reproduce, forward or copy it to any third party or otherwise use this Message. Electronic messages are not secure or error-free and may contain viruses or may be delayed and the sender is not liable for any of these occurrences. Dossani Paradise Management and its affiliates have no responsibility for unauthorized access and/or alteration to this communication, or for any consequence based on or arising from your use of information that may have been accessed or altered by any person. The sender reserves the right to monitor, record and retain electronic messages.';
 
-export const DEFAULT_LOGO_PATH = "/dpm-mark.png";
+export const DEFAULT_LOGO_PATH = "/dpm-signature-logo.png";
 
 export const BRAND_NAVY = "#1A1A8C";
 export const BRAND_RED = "#E31C24";
